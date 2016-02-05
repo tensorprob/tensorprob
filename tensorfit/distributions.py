@@ -1,3 +1,4 @@
+import tensorflow as tf
 
 __all__ = ['exponential_log', 'normal_log', 'mix2_log']
 
