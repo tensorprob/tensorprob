@@ -1,8 +1,8 @@
 # tensorfit
 
-A likelihood framework based on [TensorFlow](https://github.com/tensorflow/tensorflow).
+A likelihood inference framework based on [TensorFlow](https://github.com/tensorflow/tensorflow).
 
-tensorfit is a library allows you to construct probility distributions, perform
+tensorfit is a library that allows you to construct probility distributions, perform
 inference on data, and visualize the results. The probability function is
 constructed and evaluated using TensorFlow, which means your model can
 automatically be evaluated on multiple CPU cores and GPUs.
