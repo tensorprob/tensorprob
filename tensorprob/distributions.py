@@ -2,6 +2,14 @@ import tensorflow as tf
 
 __all__ = ['exponential_log', 'normal_log', 'mix2_log']
 
+class Node:
+    '''
+    Node in the probabilistic graph
+    '''
+    def __init__(self, **kwargs):
+        pass
+
+
 def inside(val, left, right):
     return tf.logical_and(tf.greater_equal(val, left), tf.less_equal(val, right))
 
