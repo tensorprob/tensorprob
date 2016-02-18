@@ -1,5 +1,7 @@
 # TensorProb
 
+[![Build Status](https://travis-ci.org/ibab/tensorprob.svg?branch=master)](https://travis-ci.org/ibab/tensorprob)
+
 A probabalistical graphical modeling framework based on [TensorFlow](https://github.com/tensorflow/tensorflow).
 
 TensorProb is a library that allows you to construct complex probility distributions
