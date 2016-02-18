@@ -10,12 +10,14 @@ install:
     - export PATH="$HOME/miniconda/bin:$PATH"
     - hash -r
     - conda config --set always_yes yes --set changeps1 no
-    - conda create --yes -n myenv python="$TRAVIS_PYTHON_VERSION" anaconda;
-    - source ~/miniconda/bin/activate myenv
+    - conda create --yes -n test_env python="$TRAVIS_PYTHON_VERSION" anaconda
+    - conda install gcc=4.8
+    - export LD_LIBRARY_PATH=~/miniconda/envs/test_env/lib
+    - source ~/miniconda/bin/activate test_env
     - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-          pip install --user https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.7.0-py2-none-linux_x86_64.whl;
+          pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.7.0-py2-none-linux_x86_64.whl;
         else
-          pip install --user https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.7.0-py3-none-linux_x86_64.whl;
+          pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.7.0-py3-none-linux_x86_64.whl;
         fi
 script: nosetests
 cache: apt
