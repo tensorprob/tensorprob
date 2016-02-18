@@ -2,8 +2,10 @@ import tensorflow as tf
 
 __all__ = ['Model', 'get_current_model']
 
+
 def get_current_model():
     return Model.__current_model
+
 
 class Model:
     '''
@@ -36,6 +38,7 @@ class Model:
 
     def increment_logp(self, logp):
         if Model.__current_model != self:
-            raise ValueError("Can't increment logp for this model, as it is not the current one")
+            raise ValueError(
+                "Can't increment logp for this model, as it is not the current one")
 
         self._logp += logp

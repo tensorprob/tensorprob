@@ -1,4 +1,3 @@
-
 import tensorprob as tp
 
 model = tp.Model()
@@ -17,14 +16,6 @@ with model:
 
     X = tp.Bound(X_, 100, 200)
 
-inits = {
-    mu: 150,
-    sigma1: 10,
-    sigma2: 20,
-    f_normal: 0.5,
-    lamb: 0.01,
-    f: 0.2,
-}
+inits = {mu: 150, sigma1: 10, sigma2: 20, f_normal: 0.5, lamb: 0.01, f: 0.2, }
 
-model.fit(X=[1,2,3], inits=inits)
-
+model.fit(X=[1, 2, 3], inits=inits)
