@@ -21,8 +21,8 @@ def exponential_log(X, lambda_, left, right):
     with tf.name_scope('exponential_log') as scope:
         integ = 1 - tf.exp(-(right - left) * lambda_)
         return tf.select(
-            inside(X, left, right), tf.log(tf.abs(lambda_ / integ)) -
-            (X - left) * lambda_, tf.fill(
+            inside(X, left, right),
+            tf.log(tf.abs(lambda_ / integ)) - (X - left) * lambda_, tf.fill(
                 tf.shape(X), TYPE(-np.inf)))
 
 
