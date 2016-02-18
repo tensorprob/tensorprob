@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/ibab/tensorprob.svg?branch=master)](https://travis-ci.org/ibab/tensorprob)
 
-A probabalistical graphical modeling framework based on [TensorFlow](https://github.com/tensorflow/tensorflow).
+A probabalistic graphical modeling framework based on [TensorFlow](https://github.com/tensorflow/tensorflow).
 
 TensorProb is a library that allows you to construct complex probility distributions
 from primitive ones and perform inference on data.
