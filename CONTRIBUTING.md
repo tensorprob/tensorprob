@@ -40,7 +40,7 @@ To contribute to this repository:
  - [ ] If you have fixed a bug, add a test to make sure that the bug doesn't
    happen again
  - [ ] Run `make format` in the top level directory of the project to format
-   the code according to our style settings in `.yapf.cfg`
+   the code according to our style settings in `.style.yapf`
 
 Finally, go to the web page of your fork of the `tensorprob` repo,
 and click 'Pull request' to send your changes to the maintainers for
