@@ -17,6 +17,7 @@ install:
     - conda config --set always_yes yes --set changeps1 no
     - conda create --yes -n test_env python="$TRAVIS_PYTHON_VERSION" gcc=4.8 numpy nose pip wheel
     - source ~/miniconda/bin/activate test_env
+    - pip install ghp-import
     - export LD_LIBRARY_PATH=~/miniconda/envs/test_env/lib
     - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
           pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.7.0-py2-none-linux_x86_64.whl;
