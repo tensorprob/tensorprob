@@ -9,9 +9,7 @@ def get_current_model():
 
 
 class Model:
-    '''
-    The probabilistic graph.
-    '''
+    """The probabilistic graph."""
     __current_model = None
 
     def __init__(self, random_state=None):
@@ -21,7 +19,8 @@ class Model:
         self.Scalar = self.init_object(Scalar)
         for distribution in distributions.__all__:
             if distribution is not distributions.BaseDistribution:
-                setattr(self, distribution.__name__, self.init_object(distribution))
+                setattr(self, distribution.__name__,
+                        self.init_object(distribution))
 
     def __enter__(self):
         if Model.__current_model is not None:
@@ -33,6 +32,11 @@ class Model:
         Model.__current_model = None
 
     def init_object(self, cls):
+        """Adds a method to the model to created tracked *cls* type objects
+
+        **Arguments:**
+            - **cls**: The class to add to this model's namespace
+        """
         def init(*args, **kwargs):
             obj = cls(*args, **kwargs)
             self.track_object(obj)
@@ -40,7 +44,12 @@ class Model:
         return init
 
     def track_object(self, obj):
+        """Add *obj* to the list of tracked objects."""
         self.components.append(obj)
+
+    def untrack_object(self, obj):
+        """Remove *obj* to the list of tracked objects."""
+        self.components.remove(obj)
 
     def pdf(self, **kwargs):
         pass
