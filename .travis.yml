@@ -7,6 +7,8 @@ python:
 # Enable it with the next tensorflow version
 #   - "3.5"
 env:
+    global:
+        secure: OBlwwjHDBgHnGLAtVv22oQORyYu+x2XnRJBW7yA0ZvHkvBErMOyMoftVNGa2tNaP24OeI1bh3s1zQVJ8r1CVADys/DycgD4Asqt69JBLKQtiF7Lap8vKtrQZYmXvbFN1UyvW7nRydy++UBM/o6gyXKeln7AzJz34Feb866SqMideCErI+w2cRwREuoFvemEfJZN/nHii47rkWmVqlm6hdHSMwUfVE0VCEn9HHjXEH5Vp8SeNlMprirSXZr6CrY5JQD0WQlIEz9OjJR63mHMw9RmH2kCL+yKdIy2igJZlhvioGW18MSrGXWLTroUpCR5NIlXgzxQDQQXeStPlfVXHWmEeSQBJt86tFMQwA60+IFhBXuTaQRX9cwHpqqZb4zCJwe4214lvDc2sXH9isbbtk9g3U6eakJCL72c8ci5HpMydodkVB41gv2WwXQgMD4IRTqKjsHGPs8ddzsm/kUP890iSdoAEu+051JQWWtmPXof4Wog37QNt2E04Y2e9R2ykC8u4WrAtObFIC4xDm46ljaBxrVWoSvcyq5dFP2OY2gyxlWLi82BmjTp8rY6Ked3cuOUgmoeMyy+SM1IUi95hk4F2eqZDZu8PMvp6RrrcQY87XXQnFjZdRmDCZBxlj9Elfn/KfUBfBkw2Cj3N6G5/EdnuuPwncQEY/jpSf9qAQwE=
 install:
     - wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
     - bash miniconda.sh -b -p $HOME/miniconda
@@ -21,7 +23,11 @@ install:
         else
           pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.7.0-py3-none-linux_x86_64.whl;
         fi
-script: nosetests
+script:
+    - nosetests
+    - make docs
+    # Don't publish pull requests
+    - '[ "${TRAVIS_PULL_REQUEST}" = "false" ] && make publish'
 cache: apt
 notifications:
     email: false
