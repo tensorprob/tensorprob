@@ -1,7 +1,7 @@
 # TensorProb
 
-[![Build Status](https://travis-ci.org/ibab/tensorprob.svg?branch=master)](https://travis-ci.org/ibab/tensorprob)
-[![Coverage Status](https://coveralls.io/repos/github/ibab/tensorprob/badge.svg?branch=master)](https://coveralls.io/github/ibab/tensorprob?branch=master)
+[![Build Status](https://img.shields.io/travis/ibab/tensorprob/master.svg)](https://travis-ci.org/ibab/tensorprob)
+[![Coverage Status](https://img.shields.io/coveralls/ibab/tensorprob/master.svg)](https://coveralls.io/github/ibab/tensorprob?branch=master)
 [![Documentation](https://img.shields.io/badge/documentation-link-blue.svg)](https://ibab.github.io/tensorprob)
 
 TensorProb is a probabalistic graphical modeling framework based on
