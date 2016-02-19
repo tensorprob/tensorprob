@@ -1,0 +1,11 @@
+site_name: TensorProb documentation
+theme: readthedocs
+docs_dir: sources
+repo_url: http://github.com/ibab/tensorprob
+site_url: http://ibab.github.io/tensorprob
+site_description: Documentation for TensorProb.
+
+dev_addr: '0.0.0.0:8000'
+
+pages:
+- Home: index.md
