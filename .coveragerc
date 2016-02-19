@@ -1,0 +1,11 @@
+# .coveragerc to control coverage.py
+# Based on https://github.com/rootpy/root_numpy/blob/master/.coveragerc
+# which is based on http://nedbatchelder.com/code/coverage/config.html
+[run]
+branch = True
+source = tensorprob
+include = */tensorprob/*
+omit =
+[report]
+exclude_lines =
+    raise AssertionError

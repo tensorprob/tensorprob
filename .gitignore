@@ -1,5 +1,12 @@
+## Custom .gitignore:
+
 # Documentation site
 docs/site/
+
+# Coverage information
+cover/
+
+## Standard python .gitignore:
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
