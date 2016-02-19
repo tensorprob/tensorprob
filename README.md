@@ -15,3 +15,8 @@ evaluated using TensorFlow, which means you can make use of multiple CPU cores
 and GPUs simultaneously. This also makes it easy to add new custom probability
 distributions, or to debug your model if it's not doing what you expect.
 
+## Contributing to TensorProb
+
+We happily accept contributions to the project!
+Please have a look at [`CONTRIBUTING.md`](CONTRIBUTING.md) for instructions and guidelines for contributing.
+
