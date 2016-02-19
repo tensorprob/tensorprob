@@ -17,8 +17,8 @@ import numpy as np
 import tensorprob as tp
 
 with tp.Model() as model:
-    mu = Scalar()
-    sigma = Scalar(lower=0)
+    mu = tp.Scalar()
+    sigma = tp.Scalar(lower=0)
     X = tp.Normal(mu, sigma)
     model.bind_params([('X', X)])
 
