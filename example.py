@@ -1,5 +1,6 @@
 import tensorprob as tp
 
+x_data = [1, 2, 3]
 
 with tp.Model() as m:
     mu = m.Scalar('mu')
@@ -15,6 +16,15 @@ with tp.Model() as m:
 
     X = m.Bound(X_, 100, 200)
 
-inits = {mu: 150, sigma1: 10, sigma2: 20, f_normal: 0.5, lamb: 0.01, f: 0.2, }
+    m.observed(X)
 
-m.fit(X=[1, 2, 3], inits=inits)
+m.set_values({
+    mu: 150,
+    sigma1: 10,
+    sigma2: 20,
+    f_normal: 0.5,
+    lamb: 0.01,
+    f: 0.2
+})
+
+m.fit(x_data)
