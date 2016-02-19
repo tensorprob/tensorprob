@@ -33,6 +33,15 @@ To contribute to this repository:
 
           $ git push -u origin my-new-branch
 
+**Checklist** of things to do before you open a pull request:
+
+ - [ ] If you have added a new feature, make sure that you have provided tests
+   for that feature
+ - [ ] If you have fixed a bug, add a test to make sure that the bug doesn't
+   happen again
+ - [ ] Run `make format` in the top level directory of the project to format
+   the code according to our style settings in `.yapf.cfg`
+
 Finally, go to the web page of your fork of the `tensorprob` repo,
 and click 'Pull request' to send your changes to the maintainers for
 review. This will send an email to the maintainers.
