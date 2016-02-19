@@ -10,7 +10,7 @@ with model:
     lamb = tp.scalar('lambda')
     f = tp.scalar('f', lower=0, upper=1)
 
-    X1 = tp.Normal2(mu, f, sigma1, sigma2)
+    X1 = tp.Normal2(mu, f_normal, sigma1, sigma2)
     X2 = tp.Exponential(lamb)
     X_ = tp.Mix2(f, X1, X2)
 
