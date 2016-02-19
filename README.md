@@ -1,6 +1,6 @@
 # TensorProb
 
-[![Build Status](https://travis-ci.org/ibab/tensorprob.svg?branch=master)](https://travis-ci.org/ibab/tensorprob) [![Documentation](https://img.shields.io/badge/docs-link-blue.svg)](https://ibab.github.io/tensorprob)
+[![Build Status](https://travis-ci.org/ibab/tensorprob.svg?branch=master)](https://travis-ci.org/ibab/tensorprob) [![Documentation](https://img.shields.io/badge/documentation-link-blue.svg)](https://ibab.github.io/tensorprob)
 
 
 A probabalistic graphical modeling framework based on [TensorFlow](https://github.com/tensorflow/tensorflow).
