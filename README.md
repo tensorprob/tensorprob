@@ -13,12 +13,17 @@ parameters from data.
 
 Fitting a normal distribution to data is as simple as
 ```python
+import numpy as np
 import tensorprob as tp
 
 with tp.Model() as model:
-    mu, sigma = Scalar(), Scalar(lower=0)
+    mu = Scalar()
+    sigma = Scalar(lower=0)
     X = tp.Normal(mu, sigma)
     model.bind_params([('X', X)])
+
+data = np.random.normal(0, 1, 100)
+model.fit(data)
 ```
 
 The posterior distribution (or likelihood function) are constructed and
