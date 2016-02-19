@@ -39,6 +39,7 @@ class Model:
     def increment_logp(self, logp):
         if Model.__current_model != self:
             raise ValueError(
-                "Can't increment logp for this model, as it is not the current one")
+                "Can't increment logp for this model, as it is not the current one"
+            )
 
         self._logp += logp

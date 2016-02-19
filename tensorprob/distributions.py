@@ -14,7 +14,8 @@ class Node:
 
 def inside(val, left, right):
     return tf.logical_and(
-        tf.greater_equal(val, left), tf.less_equal(val, right))
+        tf.greater_equal(val, left), tf.less_equal(val, right)
+    )
 
 
 def exponential_log(X, lambda_, left, right):
@@ -23,21 +24,33 @@ def exponential_log(X, lambda_, left, right):
         return tf.select(
             inside(X, left, right),
             tf.log(tf.abs(lambda_ / integ)) - (X - left) * lambda_, tf.fill(
-                tf.shape(X), TYPE(-np.inf)))
+                tf.shape(X), TYPE(-np.inf)
+            )
+        )
 
 
 def normal_log(X, mu, sigma, left, right):
     with tf.name_scope('normal_log') as scope:
-        val = tf.log(1 / (tf.constant(
-            np.sqrt(2 * np.pi),
-            dtype=TYPE) * sigma)) - tf.pow(X - mu, 2) / (
-                tf.constant(2,
-                            dtype=TYPE) * tf.pow(sigma, 2))
+        val = tf.log(
+            1 / (
+                tf.constant(
+                    np.sqrt(2 * np.pi),
+                    dtype=TYPE
+                ) * sigma
+            )
+        ) - tf.pow(X - mu, 2) / (
+            tf.constant(
+                2,
+                dtype=TYPE
+            ) * tf.pow(sigma, 2)
+        )
         cdf = lambda lim: 0.5 * tf.erfc((mu - lim) / (tf.constant(np.sqrt(2)) * sigma))
         integ = cdf(right) - cdf(left)
         return tf.select(
             inside(X, left, right), tf.log(tf.exp(val) / integ), tf.fill(
-                tf.shape(X), TYPE(-np.inf)))
+                tf.shape(X), TYPE(-np.inf)
+            )
+        )
 
 
 def mix2_log(X, logpdf1, logpdf2, f1, pdf1_params, pdf2_params, left, right):
