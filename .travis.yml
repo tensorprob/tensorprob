@@ -28,7 +28,7 @@ script:
     - nosetests
     - make docs
     # Don't publish pull requests
-    - '[ "${TRAVIS_PULL_REQUEST}" = "false" ] && make publish'
+    - '[ "${TRAVIS_PULL_REQUEST}" = "false" ] && make publish || echo "Pull requests are not published"'
 cache: apt
 notifications:
     email: false
