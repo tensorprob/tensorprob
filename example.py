@@ -3,12 +3,12 @@ import tensorprob as tp
 model = tp.Model()
 
 with model:
-    mu = tp.scalar('mu')
-    f_normal = tp.scalar('f_normal', lower=0, upper=1)
-    sigma1 = tp.scalar('sigma1', lower=0)
-    sigma2 = tp.scalar('sigma2', lower=0)
-    lamb = tp.scalar('lambda')
-    f = tp.scalar('f', lower=0, upper=1)
+    mu = tp.Scalar('mu')
+    f_normal = tp.Scalar('f_normal', lower=0, upper=1)
+    sigma1 = tp.Scalar('sigma1', lower=0)
+    sigma2 = tp.Scalar('sigma2', lower=0)
+    lamb = tp.Scalar('lambda')
+    f = tp.Scalar('f', lower=0, upper=1)
 
     X1 = tp.Normal2(mu, f_normal, sigma1, sigma2)
     X2 = tp.Exponential(lamb)
