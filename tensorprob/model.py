@@ -17,7 +17,7 @@ class Model:
         self.components = []
 
         self.Scalar = self.init_object(Scalar)
-        for distribution in distributions.__all__:
+        for distribution in distributions.all_distributions:
             if distribution is not distributions.BaseDistribution:
                 setattr(self, distribution.__name__,
                         self.init_object(distribution))
