@@ -14,17 +14,32 @@ parameters from data.
 Fitting a normal distribution to data is as simple as
 ```python
 import numpy as np
-import tensorprob as tp
+from tensorprob import Model, Scalar, Normal
 
-with tp.Model() as model:
-    mu = tp.Scalar()
-    sigma = tp.Scalar(lower=0)
-    X = tp.Normal(mu, sigma)
-    model.bind_params([('X', X)])
+with Model() as model:
+    mu = Scalar()
+    sigma = Scalar(lower=0)
+    X = Normal(mu, sigma)
+    model.observed(X)
 
-data = np.random.normal(0, 1, 100)
+model.assign({
+    mu: 1,
+    sigma: 2,
+})
+
+# Create dataset
+data = np.random.normal(0, 1, 1000)
 model.fit(data)
 ```
+The resulting fit can be visualized with
+```
+import matplotlib.pyplot as plt
+xs = np.linspace(-5, 5, 200)
+plt.hist(data, bins=20, histtype='stepfilled', color='k')
+plt.plot(xs, model.pdf(xs), 'b-')
+```
+![Plot](./examples/example3.png)
+
 
 The posterior distribution (or likelihood function) are constructed and
 evaluated using TensorFlow, which means you can make use of multiple CPU cores
