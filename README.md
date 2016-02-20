@@ -46,11 +46,49 @@ plt.plot(xs, model.pdf(xs), 'b-')
 ```
 <div align="center"><img src="examples/example3.png" width="600px"/></div>
 
-
 The posterior distribution (or likelihood function) are constructed and
 evaluated using TensorFlow, which means you can make use of multiple CPU cores
 and GPUs simultaneously. This also makes it easy to add new custom probability
 distributions, or to debug your model if it's not doing what you expect.
+
+## Line fitting example
+
+TensorProb can be used for a variety of inference tasks.
+For example, we can use it to fit a line assuming that the data points
+are distributed according to a normal distribution in the vertical direction.
+This is equivalent to a least squares fit.
+
+The model can be expressed as
+```python
+from tensorprob import Model, Parameter, Normal
+
+with Model() as model:
+    a = Parameter()
+    b = Parameter()
+    sigma = Parameter(lower=0)
+    X = Parameter()
+    y = Normal(a * X + b, sigma)
+
+model.observed(X, y)
+model.assign({
+    a: 2,
+    b: 2,
+    sigma: 10,
+})
+results = model.fit(xs, ys)
+print(results)
+
+import numpy as np
+xs = np.linspace(0, 1, 100)
+ys = 1 * xs + 0 +  np.random.normal(0, .1, len(xs))
+
+import matplotlib.pyplot as plt
+plt.plot(xs, ys, 'ro')
+x_ = np.linspace(0, 1, 200)
+plt.plot(x_, model.state[a] * x_ + model.state[b], 'b-')
+```
+<div align="center"><img src="examples/example4.png" width="600px"/></div>
+
 
 ## Contributing to TensorProb
 
