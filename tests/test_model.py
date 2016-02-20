@@ -1,7 +1,14 @@
 import numpy as np
 from nose.tools import raises
+import scipy.stats as st
 
 import tensorprob as tp
+
+
+def test_creation():
+    model = tp.Model()
+    with model:
+        pass
 
 
 @raises(tp.model.ModelError)
@@ -37,10 +44,56 @@ def test_untrack_variables():
     assert(mu not in model.components)
 
 
-def test_creation():
-    model = tp.Model()
-    with model:
+def test_observed():
+    with tp.Model() as model:
+        mu = tp.Scalar()
+        sigma = tp.Scalar()
+        X = tp.Normal(mu, sigma)
+    model.observed(X)
+    assert(X in model._observed)
+
+
+@raises(ValueError)
+def test_observed_erorr_on_non_distribution():
+    with tp.Model() as model:
+        mu = tp.Scalar()
+        sigma = tp.Scalar()
+        X = tp.Normal(mu, sigma)
+    model.observed(X, int(42))
+
+
+@raises(tp.model.ModelError)
+def test_prepare_without_observed():
+    with tp.Model() as model:
         pass
+    model._prepare_model([])
+
+
+@raises(tp.model.ModelError)
+def test_prepare_with_incorrect_parameters():
+    with tp.Model() as model:
+        mu = tp.Scalar()
+        sigma = tp.Scalar()
+        X = tp.Normal(mu, sigma)
+    model.observed(X)
+    model._prepare_model([])
+
+
+def test_nll():
+    with tp.Model() as model:
+        mu = tp.Scalar()
+        sigma = tp.Scalar()
+        X = tp.Normal(mu, sigma)
+    model.observed(X)
+
+    xs = np.linspace(-5, 5, 100)
+    out1 = -sum(st.norm.logpdf(xs, 0, 1))
+    model.assign({
+        mu: 0,
+        sigma: 1
+    })
+    out2 = model.nll(xs)
+    assert(out1, out2)
 
 
 def test_fit():
