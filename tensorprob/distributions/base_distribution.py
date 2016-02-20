@@ -20,11 +20,10 @@ class BaseDistribution(tf.Tensor):
         super(BaseDistribution, self).__init__(my_op, 0, config.dtype)
 
     def logp(self):
-        pass
+        raise NotImplementedError
 
     def pdf(self):
-        pass
+        raise NotImplementedError
 
     def cdf(self, lim):
-        pass
-
+        raise NotImplementedError

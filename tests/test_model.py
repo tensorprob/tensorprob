@@ -17,6 +17,26 @@ def test_distribution_creation_outside_with():
     tp.Normal(mu, sigma)
 
 
+@raises(tp.model.ModelError)
+def test_nesting_models():
+    with tp.Model():
+        with tp.Model():
+            pass
+
+
+def test_track_variables():
+    with tp.Model() as model:
+        mu = tp.Scalar('mu')
+    assert(mu in model.components)
+
+
+def test_untrack_variables():
+    with tp.Model() as model:
+        mu = tp.Scalar('mu')
+    model.untrack_variable(mu)
+    assert(mu not in model.components)
+
+
 def test_creation():
     model = tp.Model()
     with model:

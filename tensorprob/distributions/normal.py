@@ -21,7 +21,5 @@ class Normal(BaseDistribution):
         )
 
     def cdf(self, lim):
-        # 0.5 * erfc([mu-x] / [sqrt(2)*sigma])
-        return 0.5 * tf.erfc(
-            (self.mu-lim) / (tf.constant(np.sqrt(2), config.dtype)*self.sigma)
-        )
+        # 0.5 * erfc(mu-x] / [sqrt(2)*sigma])
+        return 0.5 * tf.erfc((self.mu-lim) / (tf.constant(np.sqrt(2), config.dtype)*self.sigma))

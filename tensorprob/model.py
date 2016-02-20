@@ -5,6 +5,7 @@ from .distributions import BaseDistribution
 
 from scipy.optimize import minimize
 
+
 class ModelError(RuntimeError):
     pass
 
@@ -58,7 +59,7 @@ class Model:
         inits = self.session.run(params)
 
         def objective(xs):
-            self.assign({ k: v for k, v in zip(params, xs)})
+            self.assign({k: v for k, v in zip(params, xs)})
             return self.session.run(nll, feed_dict=feed_dict)
 
         bounds = []
@@ -73,7 +74,10 @@ class Model:
             raise ModelError("observed() has not been called")
 
         if len(args) != len(self._observed):
-            raise ModelError("Number of parameters does not correspond to observed variables")
+            raise ModelError(
+                "Number of parameters ({0}) does not correspond to observed "
+                "variables ({1})".format(len(args), len(self._observed))
+            )
 
         logps = []
         for c in self.components:
