@@ -3,6 +3,7 @@ import tensorflow as tf
 from . import utilities
 from .distributions import BaseDistribution
 
+from scipy.optimize import minimize
 
 class ModelError(RuntimeError):
     pass
@@ -49,6 +50,23 @@ class Model:
         feed_dict = self._prepare_model(args)
         nll = -tf.reduce_sum(self._logp)
         return self.session.run(nll, feed_dict=feed_dict)
+
+    def fit(self, *args):
+        feed_dict = self._prepare_model(args)
+        params = self.parameters
+        nll = -tf.reduce_sum(self._logp)
+        inits = self.session.run(params)
+
+        def objective(xs):
+            self.assign({ k: v for k, v in zip(params, xs)})
+            return self.session.run(nll, feed_dict=feed_dict)
+
+        bounds = []
+        for p in params:
+            # Slightly move the bounds so that the edges are not included
+            bounds.append((p.lower + 1e-10, p.upper - 1e-10))
+
+        return minimize(objective, inits, bounds=bounds)
 
     def _prepare_model(self, args):
         if self._observed is None:

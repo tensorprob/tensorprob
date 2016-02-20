@@ -11,20 +11,39 @@ It's a Python library that allows you to construct complex multi-dimensional
 probability distributions from basic building blocks and to infer their
 parameters from data.
 
-Fitting a normal distribution to data is as simple as
+This is an example for fitting a normal distribution to data:
 ```python
 import numpy as np
-import tensorprob as tp
+from tensorprob import Model, Scalar, Normal
 
-with tp.Model() as model:
-    mu = tp.Scalar()
-    sigma = tp.Scalar(lower=0)
-    X = tp.Normal(mu, sigma)
-    model.bind_params([('X', X)])
+# Define how the model works
+with Model() as model:
+    mu = Scalar()
+    sigma = Scalar(lower=0)
+    X = Normal(mu, sigma)
+    model.observed(X)
 
-data = np.random.normal(0, 1, 100)
+# Set the initial values
+model.assign({
+    mu: 1,
+    sigma: 2,
+})
+
+# Create dataset with Numpy
+data = np.random.normal(0, 1, 1000)
+
+# Perform the fit
 model.fit(data)
 ```
+The fitted distribution can be visualized with
+```python
+import matplotlib.pyplot as plt
+xs = np.linspace(-5, 5, 200)
+plt.hist(data, bins=20, histtype='stepfilled', color='k')
+plt.plot(xs, model.pdf(xs), 'b-')
+```
+<div align="center"><img src="examples/example3.png" width="600px"/></div>
+
 
 The posterior distribution (or likelihood function) are constructed and
 evaluated using TensorFlow, which means you can make use of multiple CPU cores
