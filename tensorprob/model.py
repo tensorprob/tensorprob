@@ -151,14 +151,14 @@ class Model:
 
             input_map = dict()
             for a in args:
-                tmp = tf.placeholder(a.dtype)
+                tmp = tf.placeholder(a.dtype, name=a.name.split(':')[0])
                 self._observed_new.append(tmp)
                 observable_logps_old.append(a.logp())
                 self._map_old_new[a] = tmp
                 self._map_old_new[tmp] = a
                 input_map[a.name] = tmp
             for h in hidden:
-                var = tf.Variable(config.dtype(0))
+                var = tf.Variable(config.dtype(0), name=h.name.split(':')[0])
                 self._hidden.append(var)
                 self._map_old_new[h] = var
                 self._map_old_new[var] = h
