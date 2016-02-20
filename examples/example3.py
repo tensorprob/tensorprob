@@ -1,20 +1,25 @@
-
 import numpy as np
-from tensorprob import Model, Scalar, Normal
+from tensorprob import Model, Parameter, Normal
 
+# Define the model
 with Model() as model:
-    mu = Scalar()
-    sigma = Scalar(lower=0)
+    mu = Parameter()
+    sigma = Parameter(lower=0)
     X = Normal(mu, sigma)
-    model.observed(X)
 
+# Declare variables for which we have data
+model.observed(X)
+
+# Set the initial values
 model.assign({
-    mu: 1,
-    sigma: 2,
+    mu: 10,
+    sigma: 10,
 })
 
-# Create dataset
+# Create dataset with Numpy
 data = np.random.normal(0, 1, 1000)
+
+# Perform the fit
 model.fit(data)
 
 import matplotlib.pyplot as plt

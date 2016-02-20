@@ -1,5 +1,6 @@
 import numpy as np
 from nose.tools import raises
+from numpy.testing import assert_almost_equal
 import scipy.stats as st
 
 import tensorprob as tp
@@ -13,14 +14,14 @@ def test_creation():
 
 @raises(tp.model.ModelError)
 def test_scalar_creation_outside_with():
-    tp.Scalar('mu')
+    tp.Parameter(name='mu')
 
 
 @raises(tp.model.ModelError)
 def test_distribution_creation_outside_with():
     with tp.Model():
-        mu = tp.Scalar('mu')
-        sigma = tp.Scalar('sigma', lower=0)
+        mu = tp.Parameter(name='mu')
+        sigma = tp.Parameter(name='sigma', lower=0)
     tp.Normal(mu, sigma)
 
 
@@ -33,21 +34,21 @@ def test_nesting_models():
 
 def test_track_variables():
     with tp.Model() as model:
-        mu = tp.Scalar('mu')
+        mu = tp.Parameter(name='mu')
     assert(mu in model.components)
 
 
 def test_untrack_variables():
     with tp.Model() as model:
-        mu = tp.Scalar('mu')
+        mu = tp.Parameter(name='mu')
     model.untrack_variable(mu)
     assert(mu not in model.components)
 
 
 def test_observed():
     with tp.Model() as model:
-        mu = tp.Scalar()
-        sigma = tp.Scalar()
+        mu = tp.Parameter()
+        sigma = tp.Parameter()
         X = tp.Normal(mu, sigma)
     model.observed(X)
     assert(X in model._observed)
@@ -56,8 +57,8 @@ def test_observed():
 @raises(ValueError)
 def test_observed_erorr_on_non_distribution():
     with tp.Model() as model:
-        mu = tp.Scalar()
-        sigma = tp.Scalar()
+        mu = tp.Parameter()
+        sigma = tp.Parameter()
         X = tp.Normal(mu, sigma)
     model.observed(X, int(42))
 
@@ -66,14 +67,15 @@ def test_observed_erorr_on_non_distribution():
 def test_prepare_without_observed():
     with tp.Model() as model:
         pass
+    print(model)
     model._prepare_model([])
 
 
 @raises(tp.model.ModelError)
 def test_prepare_with_incorrect_parameters():
     with tp.Model() as model:
-        mu = tp.Scalar()
-        sigma = tp.Scalar()
+        mu = tp.Parameter()
+        sigma = tp.Parameter()
         X = tp.Normal(mu, sigma)
     model.observed(X)
     model._prepare_model([])
@@ -81,8 +83,8 @@ def test_prepare_with_incorrect_parameters():
 
 def test_nll():
     with tp.Model() as model:
-        mu = tp.Scalar()
-        sigma = tp.Scalar()
+        mu = tp.Parameter()
+        sigma = tp.Parameter()
         X = tp.Normal(mu, sigma)
     model.observed(X)
 
@@ -93,14 +95,14 @@ def test_nll():
         sigma: 1
     })
     out2 = model.nll(xs)
-    assert(out1, out2)
+    assert_almost_equal(out1, out2, 10)
 
 
 def test_fit():
     model = tp.Model()
     with model:
-        mu = tp.Scalar()
-        sigma = tp.Scalar()
+        mu = tp.Parameter()
+        sigma = tp.Parameter()
         X = tp.Normal(mu, sigma)
 
     model.observed(X)

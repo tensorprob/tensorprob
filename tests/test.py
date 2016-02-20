@@ -6,14 +6,14 @@ import tensorprob as tp
 
 @raises(tp.model.ModelError)
 def test_scalar_creation_outside_with():
-    tp.Scalar('mu')
+    tp.Parameter(name='mu')
 
 
 @raises(tp.model.ModelError)
 def test_distribution_creation_outside_with():
     with tp.Model():
-        mu = tp.Scalar('mu')
-        sigma = tp.Scalar('sigma', lower=0)
+        mu = tp.Parameter(name='mu')
+        sigma = tp.Parameter(name='sigma', lower=0)
     tp.Normal(mu, sigma)
 
 
@@ -26,8 +26,8 @@ def test_creation():
 def test_fit():
     model = tp.Model()
     with model:
-        mu = tp.Scalar()
-        sigma = tp.Scalar()
+        mu = tp.Parameter()
+        sigma = tp.Parameter()
         X = tp.Normal(mu, sigma)
 
     model.observed(X)
