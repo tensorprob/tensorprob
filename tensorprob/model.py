@@ -56,8 +56,7 @@ class Model:
     def pdf(self, *args):
         # TODO(ibab) make sure that args all have the same shape
         feed_dict = self._prepare_model(args)
-        pdf_ = tf.exp(tf.add_n(self._observable_logps_new))
-        return self.session.run(pdf_, feed_dict=feed_dict)
+        return self.session.run(self._observable_pdf, feed_dict=feed_dict)
 
     def nll(self, *args):
         feed_dict = self._prepare_model(args)
@@ -66,7 +65,7 @@ class Model:
     def fit(self, *args):
         feed_dict = self._prepare_model(args)
         hidden = self._hidden
-        placeholders = list(map(self._variable_to_placeholder.__getitem__, self._hidden))
+        placeholders = list(map(self._map_old_new.__getitem__, self._hidden))
         inits = self.session.run(hidden)
 
         def objective(xs):
@@ -76,7 +75,7 @@ class Model:
         bounds = []
         for h in hidden:
             # Slightly move the bounds so that the edges are not included
-            p = self._variable_to_placeholder[h]
+            p = self._map_old_new[h]
             if hasattr(p, 'lower') and p.lower is not None:
                 lower = p.lower + 1e-10
             else:
@@ -110,7 +109,7 @@ class Model:
         if not assign_dict:
             raise ValueError
         self.session.graph
-        ops = [self._placeholder_to_variable[k].assign(v) for k, v in assign_dict.items()]
+        ops = [self._map_old_new[k].assign(v) for k, v in assign_dict.items()]
         self.session.run(tf.group(*ops))
 
     @property
@@ -145,27 +144,29 @@ class Model:
         self._hidden = []
         self._observed = args
         self._observed_new = []
-        self._observable_logps = []
-        self._placeholder_to_variable = dict()
-        self._variable_to_placeholder = dict()
+        observable_logps_old = []
+        self._map_old_new = dict()
 
         with tf.Graph().as_default() as g:
 
+            input_map = dict()
             for a in args:
                 tmp = tf.placeholder(a.dtype)
                 self._observed_new.append(tmp)
-                self._observable_logps.append(a.logp())
-                self._placeholder_to_variable[a] = tmp
-                self._variable_to_placeholder[tmp] = a
+                observable_logps_old.append(a.logp())
+                self._map_old_new[a] = tmp
+                self._map_old_new[tmp] = a
+                input_map[a.name] = tmp
             for h in hidden:
                 var = tf.Variable(config.dtype(0))
                 self._hidden.append(var)
-                self._placeholder_to_variable[h] = var
-                self._variable_to_placeholder[var] = h
+                self._map_old_new[h] = var
+                self._map_old_new[var] = h
+                input_map[h.name] = var
 
             tf.import_graph_def(
                     original,
-                    input_map={k.name: v for k, v in self._placeholder_to_variable.items()},
+                    input_map=input_map,
                     # Avoid adding a path prefix
                     name='',
             )
@@ -173,9 +174,11 @@ class Model:
             # We set these to versions that use the tf.Variables internally
             self._nll = g.get_tensor_by_name(self._original_nll.name)
 
-            self._observable_logps_new = []
-            for ol in self._observable_logps:
-                self._observable_logps_new.append(g.get_tensor_by_name(ol.name))
+            observable_logps_new = []
+            for ol in observable_logps_old:
+                observable_logps_new.append(g.get_tensor_by_name(ol.name))
+
+            self._observable_pdf = tf.exp(tf.add_n(observable_logps_new))
 
             # TODO(ibab) manage session more sensibly
             self.session.close()

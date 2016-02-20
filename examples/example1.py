@@ -2,7 +2,7 @@ import tensorprob as tp
 
 x_data = [1, 2, 3]
 
-with tp.Model() as m:
+with tp.Model() as model:
     mu = Parameter('mu')
     f_normal = Parameter('f_normal', lower=0, upper=1)
     sigma1 = Parameter('sigma1', lower=0)
@@ -16,9 +16,8 @@ with tp.Model() as m:
 
     X = Bound(X_, 100, 200)
 
-    observed(X)
-
-set_values({
+model.observed(X)
+model.assign({
     mu: 150,
     sigma1: 10,
     sigma2: 20,
@@ -27,4 +26,4 @@ set_values({
     f: 0.2
 })
 
-fit(x_data)
+m.fit(x_data)
