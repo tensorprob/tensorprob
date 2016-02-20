@@ -15,13 +15,13 @@ class Model:
     """The probabilistic graph."""
     _current_model = None
 
-    def __init__(self, name=None):
+    def __init__(self, name=None, session=None):
         self._logp = None
         self._components = []
         self._observed = None
         self._hidden = None
         self.name = name or utilities.generate_name()
-        self.session = tf.Session()
+        self.session = session or tf.Session()
 
     def __enter__(self):
         if Model._current_model is not None:
@@ -180,9 +180,10 @@ class Model:
 
             self._observable_pdf = tf.exp(tf.add_n(observable_logps_new))
 
-            # TODO(ibab) manage session more sensibly
-            self.session.close()
-            self.session = tf.Session(graph=g)
+            # We override this session's graph with g
+            # TODO(ibab) find a nicer way to do this (might require changing
+            # things upstream)
+            self.session._graph = g
             self.session.run(tf.initialize_all_variables())
 
 
