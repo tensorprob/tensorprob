@@ -32,7 +32,7 @@ data = np.random.normal(0, 1, 1000)
 model.fit(data)
 ```
 The resulting fit can be visualized with
-```
+```python
 import matplotlib.pyplot as plt
 xs = np.linspace(-5, 5, 200)
 plt.hist(data, bins=20, histtype='stepfilled', color='k')
