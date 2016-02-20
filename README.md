@@ -38,7 +38,7 @@ xs = np.linspace(-5, 5, 200)
 plt.hist(data, bins=20, histtype='stepfilled', color='k')
 plt.plot(xs, model.pdf(xs), 'b-')
 ```
-![Plot](./examples/example3.png)
+<div align="center"><img src="examples/example3.png" width="600px"/></div>
 
 
 The posterior distribution (or likelihood function) are constructed and
