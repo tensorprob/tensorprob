@@ -12,8 +12,9 @@ class Normal(BaseDistribution):
 
         super(Normal, self).__init__(name)
 
-    def log_pdf(self, X):
+    def logp(self):
         # log(1/[sqrt(2*pi)*sigma]) - (x-mu)^2/(2*sigma^2)
+        X = self
         return (
             tf.log(1 / (tf.constant(np.sqrt(2*np.pi), dtype=config.dtype)*self.sigma)) -
             tf.pow(X-self.mu, 2) / (tf.constant(2, dtype=config.dtype)*tf.pow(self.sigma, 2))
