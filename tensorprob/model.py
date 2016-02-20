@@ -32,6 +32,9 @@ class Model:
     def __exit__(self, e_type, e, tb):
         Model._current_model = None
 
+        if e_type is not None:
+            raise
+
         logps = [c.logp() for c in self._components if isinstance(c, BaseDistribution)]
 
         # Don't fail with empty models

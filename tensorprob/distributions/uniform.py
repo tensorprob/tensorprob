@@ -19,9 +19,13 @@ class Uniform(BaseDistribution):
         if lower is None and upper is None:
             check_inside = tf.fill(tf.shape(X), True)
             lognorm = zero
+        elif upper is None and isinstance(lower, BaseDistribution):
+            raise ValueError("The Uniform distribution doesn't support one-sided variable boundaries")
         elif upper is None:
             check_inside = tf.greater(X, lower)
             lognorm = zero
+        elif lower is None and isinstance(upper, BaseDistribution):
+            raise ValueError("The Uniform distribution doesn't support one-sided variable boundaries")
         elif lower is None:
             check_inside = tf.less(X, upper)
             lognorm = zero
