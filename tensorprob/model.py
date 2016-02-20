@@ -5,6 +5,7 @@ from .distributions import BaseDistribution
 
 from scipy.optimize import minimize
 
+
 class ModelError(RuntimeError):
     pass
 
@@ -48,18 +49,16 @@ class Model:
 
     def nll(self, *args):
         feed_dict = self._prepare_model(args)
-        nll = -tf.reduce_sum(self._logp)
-        return self.session.run(nll, feed_dict=feed_dict)
+        return self.session.run(self._nll, feed_dict=feed_dict)
 
     def fit(self, *args):
         feed_dict = self._prepare_model(args)
         params = self.parameters
-        nll = -tf.reduce_sum(self._logp)
         inits = self.session.run(params)
 
         def objective(xs):
-            self.assign({ k: v for k, v in zip(params, xs)})
-            return self.session.run(nll, feed_dict=feed_dict)
+            self.assign({k: v for k, v in zip(params, xs)})
+            return self.session.run(self._nll, feed_dict=feed_dict)
 
         bounds = []
         for p in params:
@@ -73,7 +72,10 @@ class Model:
             raise ModelError("observed() has not been called")
 
         if len(args) != len(self._observed):
-            raise ModelError("Number of parameters does not correspond to observed variables")
+            raise ModelError(
+                "Number of parameters ({0}) does not correspond to observed "
+                "variables ({1})".format(len(args), len(self._observed))
+            )
 
         logps = []
         for c in self.components:
@@ -82,6 +84,7 @@ class Model:
 
         with tf.name_scope(self.name):
             self._logp = tf.add_n(logps)
+            self._nll = -tf.reduce_sum(self._logp)
 
         feed_dict = dict()
         for obs, arg in zip(self._observed, args):
