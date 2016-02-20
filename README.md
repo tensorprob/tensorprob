@@ -11,27 +11,31 @@ It's a Python library that allows you to construct complex multi-dimensional
 probability distributions from basic building blocks and to infer their
 parameters from data.
 
-Fitting a normal distribution to data is as simple as
+This is an example for fitting a normal distribution to data:
 ```python
 import numpy as np
 from tensorprob import Model, Scalar, Normal
 
+# Define how the model works
 with Model() as model:
     mu = Scalar()
     sigma = Scalar(lower=0)
     X = Normal(mu, sigma)
     model.observed(X)
 
+# Set the initial values
 model.assign({
     mu: 1,
     sigma: 2,
 })
 
-# Create dataset
+# Create dataset with Numpy
 data = np.random.normal(0, 1, 1000)
+
+# Perform the fit
 model.fit(data)
 ```
-The resulting fit can be visualized with
+The fitted distribution can be visualized with
 ```python
 import matplotlib.pyplot as plt
 xs = np.linspace(-5, 5, 200)
