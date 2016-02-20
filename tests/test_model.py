@@ -28,7 +28,8 @@ def test_distribution_creation_outside_with():
 def test_nesting_models():
     with tp.Model():
         with tp.Model():
-            pass
+            # Make coveralls ignore this line
+            raise NotImplementedError
 
 
 def test_track_variables():
