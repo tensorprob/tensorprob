@@ -15,22 +15,21 @@ class Uniform(BaseDistribution):
         X = self
 
         zero = tf.constant(0, dtype=config.dtype)
-        one = tf.constant(1, dtype=config.dtype)
 
         if lower is None and upper is None:
             check_inside = tf.fill(tf.shape(X), True)
-            norm = one
+            lognorm = zero
         elif upper is None:
             check_inside = tf.greater(X, lower)
-            norm = one
+            lognorm = zero
         elif lower is None:
             check_inside = tf.less(X, upper)
-            norm = one
+            lognorm = zero
         else:
-            check_inside = tf.logical_and(tf.greater(X, lower), tf.less(X < upper))
-            norm = 1 / (self.upper - self.lower)
+            check_inside = tf.logical_and(tf.greater(X, lower), tf.less(X, upper))
+            lognorm = tf.log(tf.constant(1, dtype=config.dtype) / (self.upper - self.lower))
 
-        self._logp = tf.select(check_inside, tf.fill(tf.shape(X), zero), tf.fill(tf.shape(X), config.dtype(-np.inf)))
+        self._logp = tf.select(check_inside, tf.fill(tf.shape(X), lognorm), tf.fill(tf.shape(X), config.dtype(-np.inf)))
 
     def logp(self):
         return self._logp

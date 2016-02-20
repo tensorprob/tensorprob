@@ -32,13 +32,10 @@ class Model:
     def __exit__(self, e_type, e, tb):
         Model._current_model = None
 
-        logps = []
-        for c in self.components:
-            if isinstance(c, BaseDistribution):
-                logps.append(c.logp())
+        logps = [c.logp() for c in self._components if isinstance(c, BaseDistribution)]
 
         # Don't fail with empty models
-        if self.components:
+        if self._components:
             with tf.name_scope(self.name):
                 summed = tf.add_n(list(map(tf.reduce_sum, logps)))
                 self._original_nll = -summed
@@ -46,11 +43,9 @@ class Model:
         self._original_graph_def = self.session.graph.as_graph_def()
 
     def track_variable(self, obj):
-        """Add *obj* to the list of tracked objects."""
         self._components.append(obj)
 
     def untrack_variable(self, obj):
-        """Remove *obj* from the list of tracked objects."""
         self._components.remove(obj)
 
     def pdf(self, *args):
@@ -64,16 +59,15 @@ class Model:
 
     def fit(self, *args):
         feed_dict = self._prepare_model(args)
-        hidden = self._hidden
         placeholders = list(map(self._map_old_new.__getitem__, self._hidden))
-        inits = self.session.run(hidden)
+        inits = self.session.run(self._hidden)
 
         def objective(xs):
             self.assign({k: v for k, v in zip(placeholders, xs)})
             return self.session.run(self._nll, feed_dict=feed_dict)
 
         bounds = []
-        for h in hidden:
+        for h in self._hidden:
             # Slightly move the bounds so that the edges are not included
             p = self._map_old_new[h]
             if hasattr(p, 'lower') and p.lower is not None:
@@ -106,22 +100,18 @@ class Model:
         return feed_dict
 
     def assign(self, assign_dict):
-        if not assign_dict:
-            raise ValueError
+        if not isinstance(assign_dict, dict) or not assign_dict:
+            raise ValueError("Argument to assign must be a dictionary with more than one element")
         self.session.graph
         ops = [self._map_old_new[k].assign(v) for k, v in assign_dict.items()]
         self.session.run(tf.group(*ops))
 
     @property
-    def components(self):
-        return self._components
-
-    @property
-    def hidden(self):
-        return self._hidden
+    def state(self):
+        hidden_values = self.session.run(self._hidden)
+        return {self._map_old_new[k]: v for k, v in zip(self._hidden, hidden_values)}
 
     def observed(self, *args):
-
         if Model._current_model == self:
             raise ModelError("Observed variables have to be set outside of the model block")
 
@@ -192,7 +182,6 @@ class Model:
         if Model._current_model is None:
             raise ModelError("This can only be used inside a model environment")
         return Model._current_model
-
 
 __all__ = [
     Model,

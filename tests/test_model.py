@@ -5,7 +5,6 @@ import scipy.stats as st
 
 import tensorprob as tp
 
-
 def test_creation():
     model = tp.Model()
     with model:
@@ -35,14 +34,14 @@ def test_nesting_models():
 def test_track_variables():
     with tp.Model() as model:
         mu = tp.Parameter(name='mu')
-    assert(mu in model.components)
+    assert(mu in model._components)
 
 
 def test_untrack_variables():
     with tp.Model() as model:
         mu = tp.Parameter(name='mu')
     model.untrack_variable(mu)
-    assert(mu not in model.components)
+    assert(mu not in model._components)
 
 
 def test_observed():
@@ -67,7 +66,6 @@ def test_observed_erorr_on_non_distribution():
 def test_prepare_without_observed():
     with tp.Model() as model:
         pass
-    print(model)
     model._prepare_model([])
 
 
@@ -101,8 +99,8 @@ def test_nll():
 def test_fit():
     model = tp.Model()
     with model:
-        mu = tp.Parameter()
-        sigma = tp.Parameter()
+        mu = tp.Parameter(lower=-5, upper=5)
+        sigma = tp.Parameter(lower=0)
         X = tp.Normal(mu, sigma)
 
     model.observed(X)
@@ -111,3 +109,49 @@ def test_fit():
     data = np.random.normal(0, 1, 100)
     results = model.fit(data)
     assert results.success
+
+
+def test_assign():
+    model = tp.Model()
+    with model:
+        mu = tp.Parameter(lower=-5, upper=5)
+        sigma = tp.Parameter(lower=0)
+        X = tp.Normal(mu, sigma)
+
+    model.observed(X)
+    feed = {mu: 42, sigma: 1}
+    model.assign(feed)
+    assert model.state == feed
+
+
+@raises(ValueError)
+def test_assign_empty_dict():
+    model = tp.Model()
+    with model:
+        mu = tp.Parameter(lower=-5, upper=5)
+        sigma = tp.Parameter(lower=0)
+        X = tp.Normal(mu, sigma)
+    model.observed(X)
+    model.assign({})
+
+
+@raises(ValueError)
+def test_assign_wrong_container():
+    model = tp.Model()
+    with model:
+        mu = tp.Parameter(lower=-5, upper=5)
+        sigma = tp.Parameter(lower=0)
+        X = tp.Normal(mu, sigma)
+    model.observed(X)
+    model.assign([1,2,3])
+
+@raises(tp.model.ModelError)
+def test_observed_in_model():
+    model = tp.Model()
+    with model:
+        mu = tp.Parameter(lower=-5, upper=5)
+        sigma = tp.Parameter(lower=0)
+        X = tp.Normal(mu, sigma)
+        model.observed(X)
+
+

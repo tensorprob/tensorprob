@@ -34,22 +34,13 @@ def test_pdf():
     assert_array_almost_equal(out1, out2, 16)
 
 
-#def test_cdf():
-#    xs = np.linspace(-5, 5, 100)
-#    out1 = st.norm.cdf(xs, 0, 1)
-#
-#    with tp.Model() as model:
-#        mu, sigma, X = make_normal()
-#
-#    model.observed(X)
-#
-#    # There is currently no proper way to access the cdf so manually run
-#    # tensorflow for now
-#    model.assign({
-#        mu: 0,
-#        sigma: 1,
-#    })
-#    feed_dict = model._prepare_model([[0]])
-#    out2 = model.session.run(X.cdf(xs), feed_dict=feed_dict)
-#
-#    assert_array_almost_equal(out1, out2, 16)
+def test_cdf():
+    xs = np.linspace(-5, 5, 100)
+    out1 = st.norm.cdf(xs, 0, 1)
+
+    with tp.Model() as model:
+        mu, sigma, X = make_normal()
+
+    out2 = model.session.run(X.cdf(xs), feed_dict={mu: 0, sigma: 1})
+
+    assert_array_almost_equal(out1, out2, 16)
