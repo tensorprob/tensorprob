@@ -1,78 +1,101 @@
 import tensorflow as tf
 
-from . import distributions
-from .scalar import Scalar
+from . import utilities
+from .distributions import BaseDistribution
 
 
-def get_current_model():
-    return Model.__current_model
+class ModelError(RuntimeError):
+    pass
 
 
 class Model:
     """The probabilistic graph."""
-    __current_model = None
+    _current_model = None
 
-    def __init__(self, random_state=None):
+    def __init__(self, name=None):
         self._logp = tf.constant(0)
-        self.components = []
-
-        self.Scalar = self.init_object(Scalar)
-        for distribution in distributions.all_distributions:
-            if distribution is not distributions.BaseDistribution:
-                setattr(self, distribution.__name__,
-                        self.init_object(distribution))
+        self._components = []
+        self._observed = None
+        self.name = name or utilities.generate_name()
+        self.session = tf.Session()
 
     def __enter__(self):
-        if Model.__current_model is not None:
-            raise ValueError("Can't nest models within each other")
-        Model.__current_model = self
+        if Model._current_model is not None:
+            raise ModelError("Can't nest models within each other")
+        Model._current_model = self
         return self
 
     def __exit__(self, e_type, e, tb):
-        Model.__current_model = None
+        Model._current_model = None
+        self.session.run(tf.initialize_all_variables())
 
-    def init_object(self, cls):
-        """Adds a method to the model to created tracked *cls* type objects
-
-        **Arguments:**
-            - **cls**: The class to add to this model's namespace
-        """
-        def init(*args, **kwargs):
-            obj = cls(*args, **kwargs)
-            self.track_object(obj)
-            return obj
-        return init
-
-    def track_object(self, obj):
+    def track_variable(self, obj):
         """Add *obj* to the list of tracked objects."""
-        self.components.append(obj)
+        self._components.append(obj)
 
-    def untrack_object(self, obj):
+    def untrack_variable(self, obj):
         """Remove *obj* to the list of tracked objects."""
-        self.components.remove(obj)
+        self._components.remove(obj)
 
-    def pdf(self, **kwargs):
-        pass
+    def pdf(self, *args):
+        feed_dict = self._prepare_model(args)
+        return self.session.run(tf.exp(self._logp), feed_dict=feed_dict)
 
-    def logp(self, **kwargs):
-        pass
+    def logp(self, *args):
+        feed_dict = self._prepare_model(args)
+        return self.session.run(self._logp, feed_dict=feed_dict)
 
-    def nodes(self):
-        pass
+    def nll(self, *args):
+        feed_dict = self._prepare_model(args)
+        nll = -tf.reduce_sum(self._logp)
+        return self.session.run(nll, feed_dict=feed_dict)
 
+    def _prepare_model(self, args):
+        if self._observed is None:
+            raise ModelError("observed() has not been called")
+
+        if len(args) != len(self._observed):
+            raise ModelError("Number of parameters does not correspond to observed variables")
+
+        logps = []
+        for c in self.components:
+            if isinstance(c, BaseDistribution):
+                logps.append(c.logp())
+
+        with tf.name_scope(self.name):
+            self._logp = tf.add_n(logps)
+
+        feed_dict = dict()
+        for obs, arg in zip(self._observed, args):
+            feed_dict[obs] = arg
+
+        return feed_dict
+
+    def assign(self, assign_dict):
+        ops = [k.assign(v) for k, v in assign_dict.items()]
+        self.session.run(tf.group(*ops))
+
+    @property
+    def components(self):
+        return self._components
+
+    @property
     def parameters(self):
-        pass
+        return [x for x in self._components if x not in self._observed]
 
-    def increment_logp(self, logp):
-        if Model.__current_model != self:
-            raise ValueError(
-                "Can't increment logp for this model, as it is not the current one"
-            )
+    def observed(self, *args):
+        for arg in args:
+            if not isinstance(arg, BaseDistribution):
+                raise ValueError("Argument {} is not a distribution".format(arg))
+        self._observed = args
 
-        self._logp += logp
+    @utilities.classproperty
+    def current_model(self):
+        if Model._current_model is None:
+            raise ModelError("This can only be used inside a model environment")
+        return Model._current_model
 
 
 __all__ = [
     Model,
-    get_current_model
 ]

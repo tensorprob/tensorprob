@@ -14,3 +14,10 @@ def generate_name():
     calling_class = inspect.stack()[1][0].f_locals['self'].__class__.__name__
     NAME_COUNTERS[calling_class] += 1
     return '{0}_{1}'.format(calling_class, NAME_COUNTERS[calling_class])
+
+
+class classproperty(object):
+    def __init__(self, getter):
+        self.getter= getter
+    def __get__(self, instance, owner):
+        return self.getter(owner)
