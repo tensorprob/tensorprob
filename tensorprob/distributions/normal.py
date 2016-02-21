@@ -28,16 +28,16 @@ def Normal(mu, sigma, name=None):
     return X
 
 
-@Distribution
-def NormalN(mus, sigmas, name=None):
-    X = tf.placeholder(config.dtype, name=name)
+# @Distribution
+# def NormalN(mus, sigmas, name=None):
+#     X = tf.placeholder(config.dtype, name=name)
 
-    logps = [_normal_logp(X, mu, sigma) for mu, sigma in zip(mus, sigmas)]
+#     logps = [_normal_logp(X, mu, sigma) for mu, sigma in zip(mus, sigmas)]
 
-    def cdf(lim):
-        raise NotImplementedError
+#     def cdf(lim):
+#         raise NotImplementedError
 
-    Distribution.logp = sum(logps)
-    Distribution.integral = lambda lower, upper: cdf(upper) - cdf(lower)
+#     Distribution.logp = sum(logps)
+#     Distribution.integral = lambda lower, upper: cdf(upper) - cdf(lower)
 
-    return X
+#     return X

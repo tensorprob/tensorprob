@@ -6,7 +6,7 @@ from ..distribution import Distribution
 
 @Distribution
 def Poisson(lambda_, name=None):
-    k = tf.Tensor(config.int_dtype, name=name)
+    k = tf.placeholder(config.int_dtype, name=name)
 
     Distribution.logp = k*lambda_ - lambda_ + tf.lgamma(k+1)
 

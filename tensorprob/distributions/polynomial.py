@@ -9,7 +9,7 @@ def Polynomial(coefficients, name=None):
     for coeff in coefficients:
         assert isinstance(coeff, tf.Tensor)
 
-    X = tf.Tensor(config.dtype, name=name)
+    X = tf.placeholder(config.dtype, name=name)
 
     pdf = coefficients[0]
     for i, coeff in enumerate(coefficients[1:], start=1):
