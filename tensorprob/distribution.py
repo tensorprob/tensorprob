@@ -2,8 +2,8 @@ from collections import namedtuple
 
 import numpy as np
 
-from .. import model
-from .. import utilities
+from . import model
+from . import utilities
 
 
 Region = namedtuple('Region', ['lower', 'upper'])
