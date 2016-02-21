@@ -20,7 +20,7 @@ model.assign({
 data = np.random.normal(0, 1, 1000)
 
 # Perform the fit
-model.fit(data)
+print(model.fit(data))
 
 import matplotlib.pyplot as plt
 xs = np.linspace(-5, 5, 200)

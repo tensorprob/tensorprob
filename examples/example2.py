@@ -1,13 +1,13 @@
 import numpy as np
-from tensorprob import Model, Scalar, Normal
+from tensorprob import Model, Parameter, Normal
 
 with Model() as model:
-    mu = Scalar()
-    sigma = Scalar(lower=0)
+    mu = Parameter()
+    sigma = Parameter(lower=0)
 
     X = Normal(mu, sigma)
 
-    model.observed(X)
+model.observed(X)
 
 model.assign({
     mu: 0,
