@@ -63,8 +63,8 @@ def Distribution(distribution_init):
             bounds = (bounds,)
 
         for variable, b in zip(variables, bounds):
-            model.Model._description[variable] = model.Description(
-                Distribution.logp, Distribution.integral, _parse_bounds(b)
+            model.Model.current_model._description[variable] = model.Description(
+                Distribution.logp, Distribution.integral, _parse_bounds(upper, lower, b)
             )
 
         return variable

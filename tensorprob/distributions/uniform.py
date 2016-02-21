@@ -6,7 +6,7 @@ from ..distribution import Distribution
 
 @Distribution
 def Uniform(name=None):
-    X = tf.Tensor(config.dtype, name=name)
+    X = tf.placeholder(config.dtype, name=name)
 
     Distribution.logp = tf.constant(1, dtype=config.dtype)
 

@@ -140,7 +140,7 @@ class Model(object):
                     self.model_graph.as_graph_def(),
                     input_map=input_map,
                     # Avoid adding a path prefix
-                    name='test',
+                    name='imported',
             )
 
     def pdf(self, *args):
@@ -159,7 +159,7 @@ class Model(object):
         pdf = tf.add_n(logps)
 
         self._rewrite_graph(full_dict)
-        new_pdf = self.session.graph.get_tensor_by_name('test/' + pdf.name)
+        new_pdf = self.session.graph.get_tensor_by_name('imported/' + pdf.name)
         return self.session.run(new_pdf)
 
     def nll(self, *args):

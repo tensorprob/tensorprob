@@ -19,7 +19,7 @@ def _normal_cdf(lim, mu, sigma):
 @Distribution
 def Normal(mu, sigma, name=None):
     # TODO(chrisburr) Just use NormalN?
-    X = tf.Tensor(config.dtype, name=name)
+    X = tf.placeholder(config.dtype, name=name)
 
     Distribution.logp = _normal_logp(X, mu, sigma)
 
@@ -30,7 +30,7 @@ def Normal(mu, sigma, name=None):
 
 @Distribution
 def NormalN(mus, sigmas, name=None):
-    X = tf.Tensor(config.dtype, name=name)
+    X = tf.placeholder(config.dtype, name=name)
 
     logps = [_normal_logp(X, mu, sigma) for mu, sigma in zip(mus, sigmas)]
 
