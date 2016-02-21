@@ -13,17 +13,17 @@ class BaseDistribution(tf.Tensor):
         # Get the op of a new placeholder and use it as our op
         placeholder = tf.placeholder(dtype=config.dtype, name=name or utilities.generate_name())
         my_op = placeholder.op
-        my_op.outputs.clear()
+        # .clear() doesn't exist in Python 2:
+        del my_op.outputs[:]
         my_op.outputs.append(self)
 
         super(BaseDistribution, self).__init__(my_op, 0, config.dtype)
 
     def logp(self):
-        pass
+        raise NotImplementedError
 
     def pdf(self):
-        pass
+        raise NotImplementedError
 
     def cdf(self, lim):
-        pass
-
+        raise NotImplementedError

@@ -7,21 +7,21 @@ from .base_distribution import BaseDistribution
 
 class Normal(BaseDistribution):
     def __init__(self, mu, sigma, name=None):
+        super(Normal, self).__init__(name)
+
         self.mu = mu
         self.sigma = sigma
 
-        super(Normal, self).__init__(name)
+        X = self
+        self._logp = (
+            tf.log(1 / (tf.constant(np.sqrt(2 * np.pi), dtype=config.dtype) * self.sigma)) -
+            (X - self.mu)**2 / (tf.constant(2, dtype=config.dtype) * self.sigma**2)
+        )
+
+        self._cdf = lambda lim: 0.5 * tf.erfc((self.mu - lim) / (tf.constant(np.sqrt(2), config.dtype) * self.sigma))
 
     def logp(self):
-        # log(1/[sqrt(2*pi)*sigma]) - (x-mu)^2/(2*sigma^2)
-        X = self
-        return (
-            tf.log(1 / (tf.constant(np.sqrt(2*np.pi), dtype=config.dtype)*self.sigma)) -
-            tf.pow(X-self.mu, 2) / (tf.constant(2, dtype=config.dtype)*tf.pow(self.sigma, 2))
-        )
+        return self._logp
 
     def cdf(self, lim):
-        # 0.5 * erfc([mu-x] / [sqrt(2)*sigma])
-        return 0.5 * tf.erfc(
-            (self.mu-lim) / (tf.constant(np.sqrt(2), config.dtype)*self.sigma)
-        )
+        return self._cdf(lim)

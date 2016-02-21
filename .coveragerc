@@ -8,4 +8,5 @@ include = */tensorprob/*
 omit =
 [report]
 exclude_lines =
+    raise NotImplementedError
     raise AssertionError

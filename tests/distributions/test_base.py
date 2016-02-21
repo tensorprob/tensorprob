@@ -1,18 +1,23 @@
-import tensorflow as tf
 from tensorprob import Model
 from tensorprob.distributions import BaseDistribution
 from nose.tools import raises
+import tensorflow as tf
 
-@raises(tf.python.framework.errors.InvalidArgumentError)
-def test_BaseDistribution_is_placeholder():
-    with Model():
-        dist = BaseDistribution()
-        sess = tf.Session()
-        sess.run(42 * dist)
+
+def test_BaseDistribution_is_tensor():
+    sess = tf.Session()
+    with Model() as model:
+        X = BaseDistribution()
+        assert isinstance(X, tf.Tensor)
+        # In order to prevent it from failing
+        model.untrack_variable(X)
+
 
 def test_BaseDistribution_can_eval():
-    with Model():
-        dist = BaseDistribution()
-        sess = tf.Session()
-        assert(sess.run(42 * dist, feed_dict={dist: 1.0}) == 42.0)
+    sess = tf.Session()
+    with Model() as model:
+        X = BaseDistribution()
+        # In order to prevent it from failing
+        model.untrack_variable(X)
 
+    assert(sess.run(42 * X, feed_dict={X: 1.0}) == 42.0)
