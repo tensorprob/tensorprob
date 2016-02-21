@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+from six.moves import zip_longest
+
 
 NAME_COUNTERS = defaultdict(lambda: 0)
 
@@ -23,3 +25,10 @@ class classproperty(object):
 
     def __get__(self, instance, owner):
         return self.getter(owner)
+
+
+def grouper(iterable, n=2, fillvalue=None):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
+    args = [iter(iterable)] * n
+    return zip_longest(*args, fillvalue=fillvalue)

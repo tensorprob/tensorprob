@@ -13,24 +13,25 @@ class DistributionError(Exception):
     pass
 
 
+def _parse_bounds(lower, upper, bounds):
+    if not bounds:
+        lower = -np.inf if lower is None else lower
+        upper = np.inf if upper is None else upper
+        return [Region(lower, upper)]
+
+    # Convert bounds to be a list of Region tuples
+    if not isinstance(bounds[0], tuple):
+        bounds = utilities.grouper(bounds)
+    return [Region(*b) for b in bounds]
+
+
 def Distribution(distribution_init):
     def f(*args, lower=None, upper=None, bounds=None, name=None):
-        # TODO(chrisburr) Add a way of specifying different bounds for multiple
-        # variables
-        # Parse the bounds
-        if bounds is None:
-            lower = -np.inf if lower is None else lower
-            upper = np.inf if upper is None else upper
-            bounds = [Region(lower, upper)]
-        elif lower is not None or upper is not None:
+        if bounds and (lower is not None or upper is not None):
             # Only allow the use of lower/upper if bounds is None
             raise DistributionError(
                 "'lower'/'upper' can't be used in combination with 'bounds'"
             )
-        else:
-            # TODO(chrisburr) This should check that the bounds are a list of
-            # Regions else it needs to be parsed
-            raise NotImplementedError
 
         name = name or utilities.generate_name(distribution_init)
 
@@ -44,12 +45,26 @@ def Distribution(distribution_init):
         if Distribution.integral is None:
             raise NotImplementedError('Numeric integrals are not yet supported')
 
-        if not isinstance(variables, tuple):
-            variables = tuple(variables)
+        if isinstance(variables, tuple):
+            if isinstance(bounds[0][0], Region):
+                if len(variables) != len(bounds):
+                    raise DistributionError(
+                        "Either a single set of 'bounds' must be provided or "
+                        "the number of bounds ({0}) must equal the "
+                        "dimensionality of the distribution ({1})"
+                        .format(len(bounds), len(variables))
+                    )
+            else:
+                # Set the same bounds for all variables
+                bounds = [bounds]*len(variables)
+        else:
+            # We have a 1D distribution so convert variables/bounds to tuples
+            variables = (variables,)
+            bounds = (bounds,)
 
-        for variable in variables:
+        for variable, b in zip(variables, bounds):
             model.Model._description[variable] = model.Description(
-                Distribution.logp, Distribution.integral, bounds
+                Distribution.logp, Distribution.integral, _parse_bounds(b)
             )
 
         return variable
