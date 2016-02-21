@@ -6,7 +6,7 @@ from ..distribution import Distribution
 
 @Distribution
 def Exponential(lambda_, name=None):
-    X = tf.placeholder(config.dtype, name=name)
+    X = tf.Tensor(config.dtype, name=name)
 
     Distribution.logp = tf.log(lambda_) - lambda_*X
 
