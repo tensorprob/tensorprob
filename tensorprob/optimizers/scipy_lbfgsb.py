@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 from scipy.optimize import fmin_l_bfgs_b
 
+from ..optimization_result import OptimizationResult
 from .base import BaseOptimizer
 
 
@@ -59,6 +60,14 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
             callback = None
 
         results = fmin_l_bfgs_b(objective, inits, fprime=gradient, callback=callback, approx_grad=approx_grad, bounds=min_bounds)
+
+        ret = OptimizationResult()
+        ret.x = results[0]
+        ret.fval = results[1]
+        ret.niter = results[2]['nit']
+        ret.calls = results[2]['funcalls']
+        ret.success = results[2]['warnflag'] == 0
+
         #self.session.run([v.assign(x) for v, x in zip(variables, results[0])])
-        return results
+        return ret
 
