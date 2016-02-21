@@ -8,6 +8,7 @@ from . import config
 from . import utilities
 
 
+# Used to describe a variable's role in the model
 Description = namedtuple('Description', ['logp', 'integral', 'bounds'])
 
 
@@ -36,8 +37,10 @@ class Model(object):
         # A dictionary mapping `tensorflow.placeholder`s of variables to new
         # `tensorflow.placeholder`s which have been substituted using combinators
         self._silently_replace = dict()
-        # The graph that we will eventually run with
+        # The session that we will eventually run with
         self.session = tf.Session(graph=tf.Graph())
+        # TODO(ibab) Put in some work so that the user's model doesn't pollute
+        # the global graph
         self.model_graph = tf.get_default_graph()
 
         self.name = name or utilities.generate_name(self.__class__)
@@ -78,7 +81,7 @@ class Model(object):
     def _rewrite_graph(self, transform):
         input_map = { k.name: v for k, v in transform.items() }
         # Modify the input dictionary to replace variables which have been
-        # superceeded with the user of combinators
+        # superseded with the use of combinators
         for k, v in self._silently_replace.items():
             if v.name in input_map:
                 del input_map[v.name]
@@ -124,7 +127,7 @@ class Model(object):
         with self.session.graph.as_default():
             self._hidden = dict()
             for var in hidden:
-                self._hidden[var] = tf.Variable(var.dtype.as_numpy_dtype(assign_dict[var]))
+                self._hidden[var] = tf.Variable(var.dtype.as_numpy_dtype(assign_dict[var]), name=var.name.split(':')[0])
         self.session.run(tf.initialize_variables(list(self._hidden.values())))
 
         all_vars = self._hidden.copy()
@@ -139,6 +142,7 @@ class Model(object):
 
             self._pdf = tf.exp(tf.add_n(logps))
             self._nll = -tf.reduce_sum(tf.add_n(logps))
+            self._nll_grad = tf.gradients(self._nll, list(self._hidden.values()))
 
 
     def assign(self, assign_dict):
@@ -166,62 +170,41 @@ class Model(object):
         values = self.session.run(variables)
         return { k: v for k, v in zip(keys, values) }
 
-
-    def pdf(self, *args):
-        # TODO(ibab) make sure that args all have the same shape
-
-        if len(args) != len(self._observed):
-            raise ValueError("Different number of arguments passed to `model.pdf()` than declared in `model.observed()`")
+    def _set_data(self, data):
+        # TODO(ibab) make sure that args all have the correct shape
+        if len(data) != len(self._observed):
+            raise ValueError("Different number of arguments passed to model method than declared in `model.observed()`")
 
         ops = []
-        for obs, arg in zip(self._observed.values(), args):
+        for obs, arg in zip(self._observed.values(), data):
             ops.append(tf.assign(obs, np.array(arg).astype(obs.dtype.as_numpy_dtype()), validate_shape=False))
         self.session.run(tf.group(*ops))
 
+    def pdf(self, *args):
+        self._set_data(args)
         return self.session.run(self._pdf)
 
     def nll(self, *args):
-        if len(args) != len(self._observed):
-            raise ValueError("Different number of arguments passed to `model.nll()` than declared in `model.observed()`")
-
-        ops = []
-        for obs, arg in zip(self._observed.values(), args):
-            ops.append(tf.assign(obs, np.array(arg).astype(obs.dtype.as_numpy_dtype()), validate_shape=False))
-        self.session.run(tf.group(*ops))
-
+        self._set_data(args)
         return self.session.run(self._nll)
 
-    def fit(self, *args):
-        inits = self.session.run(list(self._hidden.values()))
+    def fit(self, *args, optimizer=None):
+        self._set_data(args)
 
-        ops = []
-        for obs, arg in zip(self._observed.values(), args):
-            ops.append(tf.assign(obs, np.array(arg).astype(obs.dtype.as_numpy_dtype()), validate_shape=False))
-        self.session.run(tf.group(*ops))
-
-        def objective(xs):
-            feed_dict = {k: v for k, v in zip(self._hidden.values(), xs)}
-            return self.session.run(self._nll, feed_dict=feed_dict)
-
+        # Some optimizers need bounds
         bounds = []
         for h in self._hidden:
-            # Slightly move the bounds so that the edges are not included
-            lower =  self._description[h].bounds[0].lower
-            upper =  self._description[h].bounds[-1].upper
-            if np.isinf(lower):
-                lower = None
-            if np.isinf(upper):
-                upper = None
-            if lower is not None:
-                lower = lower + 1e-10
-            if upper is not None:
-                upper = upper - 1e-10
-
+            # Take outer bounds into account.
+            # We can't do better than that here
+            lower = self._description[h].bounds[0].lower
+            upper = self._description[h].bounds[-1].upper
             bounds.append((lower, upper))
 
-        results = minimize(objective, inits, bounds=bounds)
-        self.assign({k: v for k, v in zip(self._hidden, results['x'])})
-        return results
+        if optimizer is None:
+            from .optimizers import ScipyLBFGSBOptimizer
+            optimizer = ScipyLBFGSBOptimizer(session=self.session)
+
+        return optimizer.minimize(list(self._hidden.values()), self._nll, gradient=self._nll_grad, bounds=bounds)
 
 
 __all__ = [
