@@ -33,9 +33,8 @@ class Model(object):
         # variables of the model to `tensorflow.Variables` carrying the current state
         # of the model
         self._hidden = None
-        # A dictionary mapping `tensorflow.placeholder`s of varaiables to new
-        # `tensorflow.placeholder`s which have been substituted using
-        # combinators
+        # A dictionary mapping `tensorflow.placeholder`s of variables to new
+        # `tensorflow.placeholder`s which have been substituted using combinators
         self._silently_replace = dict()
         # The graph that we will eventually run with
         self.session = tf.Session(graph=tf.Graph())

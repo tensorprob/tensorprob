@@ -19,7 +19,7 @@ def Mix2(f, A, B, name=None):
         return f*a_integral(lower, upper) + (1-f)*b_integral(lower, upper)
     Distribution.integral = integral
 
-    # Modify the current model to reconise that X and Y have been removed
+    # Modify the current model to recognize that X and Y have been removed
     for dist in A, B:
         Model._current_model._silently_replace[dist] = X
         del Model._current_model._description[dist]
