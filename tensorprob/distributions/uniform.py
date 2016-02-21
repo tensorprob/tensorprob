@@ -13,3 +13,14 @@ def Uniform(name=None):
     Distribution.integral = lambda lower, upper: 1 / (upper - lower)
 
     return X
+
+
+@Distribution
+def UniformInt(name=None):
+    X = tf.placeholder(config.int_dtype, name=name)
+
+    Distribution.logp = tf.constant(1, dtype=config.int_dtype)
+
+    Distribution.integral = lambda lower, upper: 1 / (upper - lower)
+
+    return X
