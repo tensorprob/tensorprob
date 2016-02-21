@@ -68,10 +68,21 @@ class Model(object):
         self._observed = dict()
         with self.session.graph.as_default():
             for arg in args:
-                dummy = tf.Variable(0)
+                dummy = tf.Variable(arg.dtype.as_numpy_dtype())
                 self._observed[arg] = dummy
-            self.session.run(tf.initialize_variables(list(self._observed.values())))
 
+    def _rewrite_graph(self, transform):
+        input_map = { k.name: v for k, v in transform.items() }
+
+        with self.session.graph.as_default():
+            tf.import_graph_def(
+                    self.model_graph.as_graph_def(),
+                    input_map=input_map,
+                    name='added',
+            )
+
+    def _get_rewritten(self, tensor):
+        return self.session.graph.get_tensor_by_name('added/' + tensor.name)
 
     def initialize(self, assign_dict):
         # This is where the `self._hidden` map is created.
@@ -104,7 +115,21 @@ class Model(object):
             self._hidden = dict()
             for var in hidden:
                 self._hidden[var] = tf.Variable(var.dtype.as_numpy_dtype(assign_dict[var]))
-            self.session.run(tf.initialize_variables(list(self._hidden.values())))
+        self.session.run(tf.initialize_variables(list(self._hidden.values())))
+
+        all_vars = self._hidden.copy()
+        all_vars.update(self._observed)
+
+        self._rewrite_graph(all_vars)
+
+        with self.session.graph.as_default():
+            logps = []
+            for var in self._observed:
+                logps.append(self._get_rewritten(self._description[var].logp))
+
+            self._pdf = tf.exp(tf.add_n(logps))
+            self._nll = -tf.reduce_sum(tf.add_n(logps))
+
 
     def assign(self, assign_dict):
         if Model._current_model == self:
@@ -132,65 +157,61 @@ class Model(object):
         return { k: v for k, v in zip(keys, values) }
 
 
-    def _rewrite_graph(self, transform):
-        input_map = { k.name: v for k, v in transform.items() }
-
-        with self.session.graph.as_default():
-            tf.import_graph_def(
-                    self.model_graph.as_graph_def(),
-                    input_map=input_map,
-                    # Avoid adding a path prefix
-                    name='imported',
-            )
-
     def pdf(self, *args):
         # TODO(ibab) make sure that args all have the same shape
 
         if len(args) != len(self._observed):
             raise ValueError("Different number of arguments passed to `model.pdf()` than declared in `model.observed()`")
 
-        full_dict = self._hidden.copy()
+        ops = []
+        for obs, arg in zip(self._observed.values(), args):
+            ops.append(tf.assign(obs, np.array(arg).astype(obs.dtype.as_numpy_dtype()), validate_shape=False))
+        self.session.run(tf.group(*ops))
 
-        logps = []
-        for var, arg in zip(self._observed, args):
-            logps.append(self._description[var].logp)
-            converted = var.dtype.as_numpy_dtype(arg)
-            full_dict[var] = converted
-        pdf = tf.add_n(logps)
-
-        self._rewrite_graph(full_dict)
-        new_pdf = self.session.graph.get_tensor_by_name('imported/' + pdf.name)
-        return self.session.run(new_pdf)
+        return self.session.run(self._pdf)
 
     def nll(self, *args):
-        feed_dict = self._prepare_model(args)
-        return self.session.run(self._nll, feed_dict=feed_dict)
+        if len(args) != len(self._observed):
+            raise ValueError("Different number of arguments passed to `model.nll()` than declared in `model.observed()`")
+
+        ops = []
+        for obs, arg in zip(self._observed.values(), args):
+            ops.append(tf.assign(obs, np.array(arg).astype(obs.dtype.as_numpy_dtype()), validate_shape=False))
+        self.session.run(tf.group(*ops))
+
+        return self.session.run(self._nll)
 
     def fit(self, *args):
-        feed_dict = self._prepare_model(args)
-        placeholders = list(map(self._map_old_new.__getitem__, self._hidden))
-        inits = self.session.run(self._hidden)
+        inits = self.session.run(list(self._hidden.values()))
+
+        ops = []
+        for obs, arg in zip(self._observed.values(), args):
+            ops.append(tf.assign(obs, np.array(arg).astype(obs.dtype.as_numpy_dtype()), validate_shape=False))
+        self.session.run(tf.group(*ops))
 
         def objective(xs):
-            self.assign({k: v for k, v in zip(placeholders, xs)})
+            feed_dict = {k: v for k, v in zip(self._hidden.values(), xs)}
             return self.session.run(self._nll, feed_dict=feed_dict)
 
         bounds = []
         for h in self._hidden:
             # Slightly move the bounds so that the edges are not included
-            p = self._map_old_new[h]
-            if hasattr(p, 'lower') and p.lower is not None:
-                lower = p.lower + 1e-10
-            else:
+            lower =  self._description[h].bounds[0].lower
+            upper =  self._description[h].bounds[-1].upper
+            if np.isinf(lower):
                 lower = None
-            if hasattr(p, 'upper') and p.upper is not None:
-                upper = p.upper - 1e-10
-            else:
+            if np.isinf(upper):
                 upper = None
+            if lower is not None:
+                lower = lower + 1e-10
+            if upper is not None:
+                upper = upper - 1e-10
 
             bounds.append((lower, upper))
 
-        return minimize(objective, inits, bounds=bounds)
+        results = minimize(objective, inits, bounds=bounds)
+        self.assign({k: v for k, v in zip(self._hidden, results['x'])})
+        return results
 
 
 __all__ = [
