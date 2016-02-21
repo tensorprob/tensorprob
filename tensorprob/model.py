@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 import tensorflow as tf
+import numpy as np
 from scipy.optimize import minimize
 
 from . import config
@@ -18,7 +19,7 @@ class Model(object):
     """The probabilistic graph."""
     _current_model = None
 
-    def __init__(self, name=None, session=None):
+    def __init__(self, name=None):
         # The description of the model. This is a dictionary from all
         # `tensorflow.placeholder`s representing the random variables of the
         # model (defined by the user in the model block) to their `Description`s
@@ -31,9 +32,11 @@ class Model(object):
         # variables of the model to `tensorflow.Variables` carrying the current state
         # of the model
         self._hidden = None
+        # The graph that we will eventually run with
+        self.session = tf.Session(graph=tf.Graph())
+        self.model_graph = tf.get_default_graph()
 
         self.name = name or utilities.generate_name(self.__class__)
-        self.session = session or tf.Session()
 
     @utilities.classproperty
     def current_model(self):
@@ -54,13 +57,6 @@ class Model(object):
         if e_type is not None:
             raise
 
-        #logps = set(c.logp for c in self._components)
-        ## Don't fail with empty models
-        #if self._components:
-        #    with tf.name_scope(self.name):
-        #        summed = tf.add_n(list(map(tf.reduce_sum, logps)))
-        #        self._original_nll = -summed
-
     def observed(self, *args):
         if Model._current_model == self:
             raise ModelError("Can't call `model.observed()` inside the model block")
@@ -69,7 +65,13 @@ class Model(object):
             if not arg in self._description:
                 raise ValueError("Argument {} is not known to the model".format(arg))
 
-        self._observed = args
+        self._observed = dict()
+        with self.session.graph.as_default():
+            for arg in args:
+                dummy = tf.Variable(0)
+                self._observed[arg] = dummy
+            self.session.run(tf.initialize_variables(list(self._observed.values())))
+
 
     def initialize(self, assign_dict):
         # This is where the `self._hidden` map is created.
@@ -92,14 +94,17 @@ class Model(object):
             if not isinstance(key, tf.Tensor):
                 raise ValueError("Key in the initialization dict is not a tf.Tensor: {}".format(repr(key)))
 
-        hidden = set(self._description.keys().difference(set(self._observed)))
+        hidden = set(self._description.keys()).difference(set(self._observed))
         if hidden != set(assign_dict.keys()):
             raise ModelError("Not all latent variables have been passed in a call to `model.initialize().\n\
                     Missing variables: {}".format(hidden.difference(assign_dict.keys())))
 
-        self._hidden = dict()
-        for var in hidden:
-            self._hidden[var] = tf.Variable(assign_dict[var])
+        # Add variables to the execution graph
+        with self.session.graph.as_default():
+            self._hidden = dict()
+            for var in hidden:
+                self._hidden[var] = tf.Variable(var.dtype.as_numpy_dtype(assign_dict[var]))
+            self.session.run(tf.initialize_variables(list(self._hidden.values())))
 
     def assign(self, assign_dict):
         if Model._current_model == self:
@@ -122,84 +127,21 @@ class Model(object):
     @property
     def state(self):
         keys = self._hidden.keys()
-        values = self._hidden.values()
+        variables = list(self._hidden.values())
+        values = self.session.run(variables)
+        return { k: v for k, v in zip(keys, values) }
 
-        hidden_state = self.session.run(values)
-        return { k: v for k, v in zip(keys, hidden_state) }
 
-    def _prepare_model(self, args):
-        if self._observed is None:
-            raise ModelError("observed() has not been called")
+    def _rewrite_graph(self, transform):
+        input_map = { k.name: v for k, v in transform.items() }
 
-        if len(args) != len(self._observed):
-            raise ModelError(
-                "Number of parameters ({0}) does not correspond to observed "
-                "variables ({1})".format(len(args), len(self._observed))
-            )
-
-        feed_dict = dict()
-        for obs, arg in zip(self._observed_new, args):
-            feed_dict[obs] = arg
-
-        return feed_dict
-
-        # Every node that's not observed is a hidden variable with state.
-        # Rewrite the graph to convert the tf.placeholders for these into tf.Variables.
-        # Currently, we assume that all hidden variables are scalars, because we're lazy.
-        # TODO(ibab) allow hidden variables to be of any tensor shape.
-        hidden = []
-        for x in self._components:
-            if not x in args:
-                hidden.append(x)
-
-        # Use the original graph_def defined in the model block as the basis for the rewrite
-        original = self._original_graph_def
-
-        self._hidden = []
-        self._observed = args
-        self._observed_new = []
-        observable_logps_old = []
-        self._map_old_new = dict()
-
-        with tf.Graph().as_default() as g:
-
-            input_map = dict()
-            for a in args:
-                tmp = tf.placeholder(a.dtype, name=a.name.split(':')[0])
-                self._observed_new.append(tmp)
-                observable_logps_old.append(a.logp())
-                self._map_old_new[a] = tmp
-                self._map_old_new[tmp] = a
-                input_map[a.name] = tmp
-            for h in hidden:
-                var = tf.Variable(config.dtype(0), name=h.name.split(':')[0])
-                self._hidden.append(var)
-                self._map_old_new[h] = var
-                self._map_old_new[var] = h
-                input_map[h.name] = var
-
+        with self.session.graph.as_default():
             tf.import_graph_def(
-                    original,
+                    self.model_graph.as_graph_def(),
                     input_map=input_map,
                     # Avoid adding a path prefix
-                    name='',
+                    name='test',
             )
-
-            # We set these to versions that use the tf.Variables internally
-            self._nll = g.get_tensor_by_name(self._original_nll.name)
-
-            observable_logps_new = []
-            for ol in observable_logps_old:
-                observable_logps_new.append(g.get_tensor_by_name(ol.name))
-
-            self._observable_pdf = tf.exp(tf.add_n(observable_logps_new))
-
-            # We override this session's graph with g
-            # TODO(ibab) find a nicer way to do this (might require changing
-            # things upstream)
-            self.session._graph = g
-            self.session.run(tf.initialize_all_variables())
-
 
     def pdf(self, *args):
         # TODO(ibab) make sure that args all have the same shape
@@ -212,13 +154,13 @@ class Model(object):
         logps = []
         for var, arg in zip(self._observed, args):
             logps.append(self._description[var].logp)
-            full_dict[var] = tf.Variable(arg, name=var.name.split(':')[0])
+            converted = var.dtype.as_numpy_dtype(arg)
+            full_dict[var] = converted
         pdf = tf.add_n(logps)
 
-        new_graph = self._rewrite_graph(full_dict)
-        with tf.Session(graph=new_graph):
-            out = self.session.run(pdf)
-        return out
+        self._rewrite_graph(full_dict)
+        new_pdf = self.session.graph.get_tensor_by_name('test/' + pdf.name)
+        return self.session.run(new_pdf)
 
     def nll(self, *args):
         feed_dict = self._prepare_model(args)
