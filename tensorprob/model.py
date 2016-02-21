@@ -1,10 +1,14 @@
+from collection import namedtuple
+
 import tensorflow as tf
+from scipy.optimize import minimize
 
 from . import config
 from . import utilities
 from .distributions import BaseDistribution
 
-from scipy.optimize import minimize
+
+Distribution = namedtuple('Distribution', ['logp', 'integral', 'bounds'])
 
 
 class ModelError(RuntimeError):
@@ -17,7 +21,7 @@ class Model:
 
     def __init__(self, name=None, session=None):
         self._logp = None
-        self._components = []
+        self._components = {}
         self._observed = None
         self._hidden = None
         self.name = name or utilities.generate_name()
@@ -35,7 +39,7 @@ class Model:
         if e_type is not None:
             raise
 
-        logps = [c.logp() for c in self._components if isinstance(c, BaseDistribution)]
+        logps = set(c.logp for c in self._components)
 
         # Don't fail with empty models
         if self._components:
