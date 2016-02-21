@@ -24,7 +24,8 @@ class Model(object):
         # `tensorflow.placeholder`s representing the random variables of the
         # model (defined by the user in the model block) to their `Description`s
         self._description = dict()
-        # A list of observed variables.
+        # A dictionary mapping the `tensorflow.placeholder`s representing the
+        # observed variables of the model to `tensorflow.Variables`
         # These are set in the `model.observed()` method
         # If this is none, `model.observed()` has not been called yet
         self._observed = None
@@ -32,6 +33,10 @@ class Model(object):
         # variables of the model to `tensorflow.Variables` carrying the current state
         # of the model
         self._hidden = None
+        # A dictionary mapping `tensorflow.placeholder`s of varaiables to new
+        # `tensorflow.placeholder`s which have been substituted using
+        # combinators
+        self._silently_replace = dict()
         # The graph that we will eventually run with
         self.session = tf.Session(graph=tf.Graph())
         self.model_graph = tf.get_default_graph()
@@ -73,6 +78,12 @@ class Model(object):
 
     def _rewrite_graph(self, transform):
         input_map = { k.name: v for k, v in transform.items() }
+        # Modify the input dictionary to replace variables which have been
+        # superceeded with the user of combinators
+        for k, v in self._silently_replace.items():
+            if v.name in input_map:
+                del input_map[v.name]
+            input_map[k.name] = self._observed[v]
 
         with self.session.graph.as_default():
             tf.import_graph_def(
