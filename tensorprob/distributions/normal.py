@@ -17,6 +17,6 @@ def Normal(mu, sigma, name=None):
     def cdf(lim):
         return 0.5 * tf.erfc((mu - lim) / (tf.constant(np.sqrt(2), config.dtype) * sigma))
 
-    Distribution.cdf = cdf
+    Distribution.integral = lambda lower, upper: cdf(upper) - cdf(lower)
 
     return X
