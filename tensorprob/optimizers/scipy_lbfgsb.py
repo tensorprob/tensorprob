@@ -22,33 +22,39 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
 
         def objective(xs):
             feed_dict = { k: v for k, v in zip(variables, xs) }
-            return self.session.run(cost, feed_dict=feed_dict)
+            # Cast just in case the user-supplied function returns something else
+            return np.float64(self.session.run(cost, feed_dict=feed_dict))
 
-        if gradient is None:
-            def gradient(xs):
+        if gradient is not None:
+            def gradient_(xs):
                 feed_dict = { k: v for k, v in zip(variables, xs) }
-                return self.session.run(gradient, feed_dict=feed_dict)
+                # Cast just in case the user-supplied function returns something else
+                return np.array(self.session.run(gradient, feed_dict=feed_dict))
             approx_grad = False
         else:
+            gradient_ = None
             approx_grad = True
 
-        min_bounds = []
-        for current in bounds:
-            lower, upper = current
+        if bounds:
+            min_bounds = []
+            for current in bounds:
+                lower, upper = current
 
-            # Translate inf to None, which is what this minimizer understands
-            if lower is not None and np.isinf(lower):
-                lower = None
-            if upper is not None and np.isinf(upper):
-                upper = None
-            # This optimizer likes to evaluate the function at the boundaries.
-            # Slightly move the bounds so that the edges are not included.
-            if lower is not None:
-                lower = lower + 1e-10
-            if upper is not None:
-                upper = upper - 1e-10
+                # Translate inf to None, which is what this minimizer understands
+                if lower is not None and np.isinf(lower):
+                    lower = None
+                if upper is not None and np.isinf(upper):
+                    upper = None
+                # This optimizer likes to evaluate the function at the boundaries.
+                # Slightly move the bounds so that the edges are not included.
+                if lower is not None:
+                    lower = lower + 1e-10
+                if upper is not None:
+                    upper = upper - 1e-10
 
-            min_bounds.append((lower, upper))
+                min_bounds.append((lower, upper))
+        else:
+            min_bounds = None
 
         if self.verbose:
             self.fev = 0
@@ -59,7 +65,7 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
         else:
             callback = None
 
-        results = fmin_l_bfgs_b(objective, inits, fprime=gradient, callback=callback, approx_grad=approx_grad, bounds=min_bounds)
+        results = fmin_l_bfgs_b(objective, inits, fprime=gradient_, callback=callback, approx_grad=approx_grad, bounds=min_bounds)
 
         ret = OptimizationResult()
         ret.x = results[0]
