@@ -65,16 +65,15 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
         else:
             min_bounds = None
 
-        if self.verbose:
-            self.niter = 0
-            def callback(xs):
-                self.niter += 1
+        self.niter = 0
+        def callback(xs):
+            self.niter += 1
+            if self.verbose:
+                if self.niter % 50 == 0:
+                    print('iter  ', '\t'.join([ x.name.split(':')[0] for x in variables]))
                 print('{: 4d}   {}'.format(self.niter, '\t'.join(map(str, xs))))
-                if self.callback is not None:
-                    self.callback(xs, self.niter)
-            print('iter  ', '\t'.join([ x.name.split(':')[0] for x in variables]))
-        else:
-            callback = None
+            if self.callback is not None:
+                self.callback(xs, self.niter)
 
         results = fmin_l_bfgs_b(objective, inits, fprime=gradient_, callback=callback, approx_grad=approx_grad, bounds=min_bounds)
 
