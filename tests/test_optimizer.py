@@ -1,11 +1,23 @@
 
 from tensorprob import ScipyLBFGSBOptimizer
+import numpy as np
 import tensorflow as tf
+from nose.tools import raises
 
 def test_scipy_lbfgsb():
     sess = tf.Session()
-    x = tf.Variable(2, name='x')
+    x = tf.Variable(np.float64(2), name='x')
     sess.run(tf.initialize_variables([x]))
-    optimizer = ScipyLBFGSBOptimizer(session=sess)
-    optimizer.minimize([x], x**2)
+    optimizer = ScipyLBFGSBOptimizer(verbose=True, session=sess)
+    # With gradient
+    results = optimizer.minimize([x], x**2, 2 * x)
+    assert results.success
+    # Without gradient
+    results = optimizer.minimize([x], 2 * x)
+    assert results.success
+    @raises(ValueError)
+    def test_illegal_parameter_as_variable():
+        optimizer.minimize(42, x**2)
+    test_illegal_parameter_as_variable()
+
 

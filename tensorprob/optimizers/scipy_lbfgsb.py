@@ -15,6 +15,12 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
         self.callback = callback
 
     def minimize(self, variables, cost, gradient=None, bounds=None):
+        # Check if variables is iterable
+        try:
+            iter(variables)
+        except TypeError:
+            raise ValueError("Variables parameter is not iterable")
+
         for v in variables:
             if not isinstance(v, tf.Variable):
                 raise ValueError("Parameter {} is not a tensorflow variable".format(v))
@@ -77,6 +83,7 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
         ret.func = results[1]
         ret.niter = results[2]['nit']
         ret.calls = results[2]['funcalls']
+        ret.message = results[2]['task'].decode().lower()
         ret.success = results[2]['warnflag'] == 0
 
         self.session.run([v.assign(x) for v, x in zip(variables, results[0])])
