@@ -133,6 +133,8 @@ class Model(object):
             for var in hidden:
                 self._hidden[var] = tf.Variable(var.dtype.as_numpy_dtype(assign_dict[var]), name=var.name.split(':')[0])
         self.session.run(tf.initialize_variables(list(self._hidden.values())))
+        # Sort the hidden variables so we can access them in a consistant order
+        self._hidden_sorted = sorted(self._hidden.values(), key=lambda v: v.name)
 
         all_vars = self._hidden.copy()
         all_vars.update(self._observed)
@@ -146,7 +148,7 @@ class Model(object):
 
             self._pdf = tf.exp(tf.add_n(logps))
             self._nll = -tf.add_n([tf.reduce_sum(logp) for logp in logps])
-            self._nll_grad = tf.gradients(self._nll, list(self._hidden.values()))
+            self._nll_grad = tf.gradients(self._nll, self._hidden_sorted)
 
         self.initialized = True
 
@@ -197,11 +199,15 @@ class Model(object):
 
     def fit(self, *args, **kwargs):
         optimizer = kwargs.get('optimizer')
+        use_gradient = kwargs.get('use_gradient', True)
         self._set_data(args)
+
+        variables = [self._hidden[k] for k in self._hidden_sorted]
+        gradient = self._nll_grad if use_gradient else None
 
         # Some optimizers need bounds
         bounds = []
-        for h in self._hidden:
+        for h in self._hidden_sorted:
             # Take outer bounds into account.
             # We can't do better than that here
             lower = self._description[h].bounds[0].lower
@@ -214,7 +220,7 @@ class Model(object):
 
         optimizer.session = self.session
 
-        return optimizer.minimize(list(self._hidden.values()), self._nll, gradient=self._nll_grad, bounds=bounds)
+        return optimizer.minimize(variables, self._nll, gradient=gradient, bounds=bounds)
 
 
 __all__ = [

@@ -16,7 +16,6 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
         self.callback = callback
 
     def minimize(self, variables, cost, gradient=None, bounds=None):
-        gradient = None
         # Check if variables is iterable
         try:
             iter(variables)
@@ -26,9 +25,6 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
         for v in variables:
             if not isinstance(v, tf.Variable):
                 raise ValueError("Parameter {} is not a tensorflow variable".format(v))
-
-        tmp = zip(variables, bounds)
-        variables, bounds = zip(*sorted(tmp, key=lambda v: v[0].name))
 
         inits = self._session.run(variables)
 
@@ -73,7 +69,6 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
                 min_bounds.append((lower, upper))
         else:
             min_bounds = None
-        print(min_bounds)
 
         self.niter = 0
 
