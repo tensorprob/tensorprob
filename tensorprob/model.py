@@ -147,7 +147,7 @@ class Model(object):
                 logps.append(self._get_rewritten(self._description[var].logp))
 
             self._pdf = tf.exp(tf.add_n(logps))
-            self._nll = -tf.reduce_sum(tf.add_n(logps))
+            self._nll = -tf.add_n([tf.reduce_sum(logp) for logp in logps])
             self._nll_grad = tf.gradients(self._nll, list(self._hidden.values()))
 
         self.initialized = True
@@ -187,7 +187,7 @@ class Model(object):
 
         ops = []
         for obs, arg in zip(self._observed.values(), data):
-            ops.append(tf.assign(obs, np.array(arg).astype(obs.dtype.as_numpy_dtype()), validate_shape=False))
+            ops.append(tf.assign(obs, obs.dtype.as_numpy_dtype(arg), validate_shape=False))
         self.session.run(tf.group(*ops))
 
     def pdf(self, *args):
