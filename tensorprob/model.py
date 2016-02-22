@@ -1,27 +1,54 @@
+from collections import namedtuple
+
 import tensorflow as tf
 
-from . import config
 from . import utilities
-from .distributions import BaseDistribution
 
-from scipy.optimize import minimize
+
+# Used to describe a variable's role in the model
+Description = namedtuple('Description', ['logp', 'integral', 'bounds'])
 
 
 class ModelError(RuntimeError):
     pass
 
 
-class Model:
+class Model(object):
     """The probabilistic graph."""
     _current_model = None
 
-    def __init__(self, name=None, session=None):
-        self._logp = None
-        self._components = []
+    def __init__(self, name=None):
+        # The description of the model. This is a dictionary from all
+        # `tensorflow.placeholder`s representing the random variables of the
+        # model (defined by the user in the model block) to their `Description`s
+        self._description = dict()
+        # A dictionary mapping the `tensorflow.placeholder`s representing the
+        # observed variables of the model to `tensorflow.Variables`
+        # These are set in the `model.observed()` method
+        # If this is none, `model.observed()` has not been called yet
         self._observed = None
+        # A dictionary from `tensorflow.placeholder`s representing the hidden (latent)
+        # variables of the model to `tensorflow.Variables` carrying the current state
+        # of the model
         self._hidden = None
-        self.name = name or utilities.generate_name()
-        self.session = session or tf.Session()
+        # A dictionary mapping `tensorflow.placeholder`s of variables to new
+        # `tensorflow.placeholder`s which have been substituted using combinators
+        self._silently_replace = dict()
+        # The session that we will eventually run with
+        self.session = tf.Session(graph=tf.Graph())
+        # TODO(ibab) Put in some work so that the user's model doesn't pollute
+        # the global graph
+        self.model_graph = tf.get_default_graph()
+
+        # Whether `model.initialize()` has been called
+        self.initialized = False
+        self.name = name or utilities.generate_name(self.__class__)
+
+    @utilities.classproperty
+    def current_model(self):
+        if Model._current_model is None:
+            raise ModelError("This can only be used inside a model environment")
+        return Model._current_model
 
     def __enter__(self):
         if Model._current_model is not None:
@@ -32,159 +59,163 @@ class Model:
     def __exit__(self, e_type, e, tb):
         Model._current_model = None
 
+        # Re-raise underlying exceptions
         if e_type is not None:
             raise
 
-        logps = [c.logp() for c in self._components if isinstance(c, BaseDistribution)]
+    def observed(self, *args):
+        if Model._current_model == self:
+            raise ModelError("Can't call `model.observed()` inside the model block")
 
-        # Don't fail with empty models
-        if self._components:
-            with tf.name_scope(self.name):
-                summed = tf.add_n(list(map(tf.reduce_sum, logps)))
-                self._original_nll = -summed
+        for arg in args:
+            if arg not in self._description:
+                raise ValueError("Argument {} is not known to the model".format(arg))
 
-        self._original_graph_def = self.session.graph.as_graph_def()
+        self._observed = dict()
+        with self.session.graph.as_default():
+            for arg in args:
+                dummy = tf.Variable(arg.dtype.as_numpy_dtype())
+                self._observed[arg] = dummy
 
-    def track_variable(self, obj):
-        self._components.append(obj)
+    def _rewrite_graph(self, transform):
+        input_map = {k.name: v for k, v in transform.items()}
 
-    def untrack_variable(self, obj):
-        self._components.remove(obj)
+        # Modify the input dictionary to replace variables which have been
+        # superseded with the use of combinators
+        for k, v in self._silently_replace.items():
+            if v.name in input_map:
+                del input_map[v.name]
+            input_map[k.name] = self._observed[v]
 
-    def pdf(self, *args):
-        # TODO(ibab) make sure that args all have the same shape
-        feed_dict = self._prepare_model(args)
-        return self.session.run(self._observable_pdf, feed_dict=feed_dict)
+        with self.session.graph.as_default():
+            try:
+                tf.import_graph_def(
+                        self.model_graph.as_graph_def(),
+                        input_map=input_map,
+                        name='added',
+                )
+            except:
+                # Handle the case where there is no likelihood
+                pass
 
-    def nll(self, *args):
-        feed_dict = self._prepare_model(args)
-        return self.session.run(self._nll, feed_dict=feed_dict)
+    def _get_rewritten(self, tensor):
+        return self.session.graph.get_tensor_by_name('added/' + tensor.name)
 
-    def fit(self, *args):
-        feed_dict = self._prepare_model(args)
-        placeholders = list(map(self._map_old_new.__getitem__, self._hidden))
-        inits = self.session.run(self._hidden)
+    def initialize(self, assign_dict):
+        # This is where the `self._hidden` map is created.
+        # The `tensorflow.Variable`s of the map are initialized
+        # to the values given by the user in `assign_dict`.
 
-        def objective(xs):
-            self.assign({k: v for k, v in zip(placeholders, xs)})
-            return self.session.run(self._nll, feed_dict=feed_dict)
+        if Model._current_model == self:
+            raise ModelError("Can't call `model.initialize()` inside the model block")
 
-        bounds = []
-        for h in self._hidden:
-            # Slightly move the bounds so that the edges are not included
-            p = self._map_old_new[h]
-            if hasattr(p, 'lower') and p.lower is not None:
-                lower = p.lower + 1e-10
-            else:
-                lower = None
-            if hasattr(p, 'upper') and p.upper is not None:
-                upper = p.upper - 1e-10
-            else:
-                upper = None
-
-            bounds.append((lower, upper))
-
-        return minimize(objective, inits, bounds=bounds)
-
-    def _prepare_model(self, args):
         if self._observed is None:
-            raise ModelError("observed() has not been called")
+            raise ModelError("Can't initialize latent variables before `model.observed()` has been called.")
 
-        if len(args) != len(self._observed):
-            raise ModelError(
-                "Number of parameters ({0}) does not correspond to observed "
-                "variables ({1})".format(len(args), len(self._observed))
-            )
+        if self._hidden is not None:
+            raise ModelError("Can't call `model.initialize()` twice. Use `model.assign()` to change the state.")
 
-        feed_dict = dict()
-        for obs, arg in zip(self._observed_new, args):
-            feed_dict[obs] = arg
+        if not isinstance(assign_dict, dict) or not assign_dict:
+            raise ValueError("Argument to `model.initialize()` must be a dictionary with more than one element")
 
-        return feed_dict
+        for key in assign_dict.keys():
+            if not isinstance(key, tf.Tensor):
+                raise ValueError("Key in the initialization dict is not a tf.Tensor: {}".format(repr(key)))
+
+        hidden = set(self._description.keys()).difference(set(self._observed))
+        if hidden != set(assign_dict.keys()):
+            raise ModelError("Not all latent variables have been passed in a call to `model.initialize().\n\
+                    Missing variables: {}".format(hidden.difference(assign_dict.keys())))
+
+        # Add variables to the execution graph
+        with self.session.graph.as_default():
+            self._hidden = dict()
+            for var in hidden:
+                self._hidden[var] = tf.Variable(var.dtype.as_numpy_dtype(assign_dict[var]), name=var.name.split(':')[0])
+        self.session.run(tf.initialize_variables(list(self._hidden.values())))
+
+        all_vars = self._hidden.copy()
+        all_vars.update(self._observed)
+
+        self._rewrite_graph(all_vars)
+
+        with self.session.graph.as_default():
+            logps = []
+            for var in self._observed:
+                logps.append(self._get_rewritten(self._description[var].logp))
+
+            self._pdf = tf.exp(tf.add_n(logps))
+            self._nll = -tf.add_n([tf.reduce_sum(logp) for logp in logps])
+            self._nll_grad = tf.gradients(self._nll, list(self._hidden.values()))
+
+        self.initialized = True
 
     def assign(self, assign_dict):
+        if Model._current_model == self:
+            raise ModelError("Can't call `model.assign()` inside the model block")
+
         if not isinstance(assign_dict, dict) or not assign_dict:
             raise ValueError("Argument to assign must be a dictionary with more than one element")
-        self.session.graph
-        ops = [self._map_old_new[k].assign(v) for k, v in assign_dict.items()]
+
+        if self._observed is None:
+            raise ModelError("Can't assign state to the model before `model.observed()` has been called.")
+
+        if self._hidden is None:
+            raise ModelError("Can't assign state to the model before `model.initialize()` has been called.")
+
+        ops = list()
+        for k, v in assign_dict.items():
+            ops.append(self._hidden[k].assign(v))
         self.session.run(tf.group(*ops))
 
     @property
     def state(self):
-        hidden_values = self.session.run(self._hidden)
-        return {self._map_old_new[k]: v for k, v in zip(self._hidden, hidden_values)}
+        keys = self._hidden.keys()
+        variables = list(self._hidden.values())
+        values = self.session.run(variables)
+        return {k: v for k, v in zip(keys, values)}
 
-    def observed(self, *args):
-        if Model._current_model == self:
-            raise ModelError("Observed variables have to be set outside of the model block")
+    def _set_data(self, data):
+        if not self.initialized:
+            raise ModelError("Can't use the model before it has been initialized with `model.initialize(...)`")
+        # TODO(ibab) make sure that args all have the correct shape
+        if len(data) != len(self._observed):
+            raise ValueError("Different number of arguments passed to model method than declared in `model.observed()`")
 
-        for arg in args:
-            if not isinstance(arg, BaseDistribution):
-                raise ValueError("Argument {} is not a variable".format(arg))
+        ops = []
+        for obs, arg in zip(self._observed.values(), data):
+            ops.append(tf.assign(obs, obs.dtype.as_numpy_dtype(arg), validate_shape=False))
+        self.session.run(tf.group(*ops))
 
-        # Every node that's not observed is a hidden variable with state.
-        # Rewrite the graph to convert the tf.placeholders for these into tf.Variables.
-        # Currently, we assume that all hidden variables are scalars, because we're lazy.
-        # TODO(ibab) allow hidden variables to be of any tensor shape.
-        hidden = []
-        for x in self._components:
-            if not x in args:
-                hidden.append(x)
+    def pdf(self, *args):
+        self._set_data(args)
+        return self.session.run(self._pdf)
 
-        # Use the original graph_def defined in the model block as the basis for the rewrite
-        original = self._original_graph_def
+    def nll(self, *args):
+        self._set_data(args)
+        return self.session.run(self._nll)
 
-        self._hidden = []
-        self._observed = args
-        self._observed_new = []
-        observable_logps_old = []
-        self._map_old_new = dict()
+    def fit(self, *args, **kwargs):
+        optimizer = kwargs.get('optimizer')
+        self._set_data(args)
 
-        with tf.Graph().as_default() as g:
+        # Some optimizers need bounds
+        bounds = []
+        for h in self._hidden:
+            # Take outer bounds into account.
+            # We can't do better than that here
+            lower = self._description[h].bounds[0].lower
+            upper = self._description[h].bounds[-1].upper
+            bounds.append((lower, upper))
 
-            input_map = dict()
-            for a in args:
-                tmp = tf.placeholder(a.dtype, name=a.name.split(':')[0])
-                self._observed_new.append(tmp)
-                observable_logps_old.append(a.logp())
-                self._map_old_new[a] = tmp
-                self._map_old_new[tmp] = a
-                input_map[a.name] = tmp
-            for h in hidden:
-                var = tf.Variable(config.dtype(0), name=h.name.split(':')[0])
-                self._hidden.append(var)
-                self._map_old_new[h] = var
-                self._map_old_new[var] = h
-                input_map[h.name] = var
+        if optimizer is None:
+            from .optimizers import ScipyLBFGSBOptimizer
+            optimizer = ScipyLBFGSBOptimizer()
 
-            tf.import_graph_def(
-                    original,
-                    input_map=input_map,
-                    # Avoid adding a path prefix
-                    name='',
-            )
+        optimizer.session = self.session
 
-            # We set these to versions that use the tf.Variables internally
-            self._nll = g.get_tensor_by_name(self._original_nll.name)
+        return optimizer.minimize(list(self._hidden.values()), self._nll, gradient=self._nll_grad, bounds=bounds)
 
-            observable_logps_new = []
-            for ol in observable_logps_old:
-                observable_logps_new.append(g.get_tensor_by_name(ol.name))
-
-            self._observable_pdf = tf.exp(tf.add_n(observable_logps_new))
-
-            # We override this session's graph with g
-            # TODO(ibab) find a nicer way to do this (might require changing
-            # things upstream)
-            self.session._graph = g
-            self.session.run(tf.initialize_all_variables())
-
-
-    @utilities.classproperty
-    def current_model(self):
-        if Model._current_model is None:
-            raise ModelError("This can only be used inside a model environment")
-        return Model._current_model
 
 __all__ = [
     Model,

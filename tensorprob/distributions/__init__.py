@@ -1,5 +1,6 @@
-from .base_distribution import BaseDistribution
+from .combinators import Mix2
+from .exponential import Exponential
 from .normal import Normal
-from .uniform import Uniform
-
-all_distributions = [BaseDistribution, Normal, Uniform]
+from .poisson import Poisson
+from .polynomial import Polynomial
+from .uniform import Uniform, UniformInt
