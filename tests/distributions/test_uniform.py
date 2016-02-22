@@ -14,27 +14,29 @@ def test_init():
         X7 = tp.Uniform(lower=X1, upper=X2)
 
 
-@raises(ValueError)
-def test_uniform_fail_lower():
-    with tp.Model():
-        X1 = tp.Uniform()
-        X2 = tp.Uniform(lower=X1)
-
-
-@raises(ValueError)
-def test_uniform_fail_upper():
-    with tp.Model() as model:
-        X1 = tp.Uniform()
-        X2 = tp.Uniform(upper=X1)
+#@raises(ValueError)
+#def test_uniform_fail_lower():
+#    with tp.Model():
+#        X1 = tp.Uniform()
+#        X2 = tp.Uniform(lower=X1)
+#
+#
+#@raises(ValueError)
+#def test_uniform_fail_upper():
+#    with tp.Model() as model:
+#        X1 = tp.Uniform()
+#        X2 = tp.Uniform(upper=X1)
 
 
 def test_pdf():
     with tp.Model() as m:
-        X = tp.Uniform(-2, 2)
+        dummy = tp.Parameter()
+        X = tp.Uniform(lower=dummy, upper=1)
 
     m.observed(X)
+    m.initialize({ dummy: -2 })
 
-    xs = np.linspace(-1, 1, 100)
-    out1 = st.uniform.pdf(xs, -2, 4)
+    xs = np.linspace(-1, 1, 1)
+    out1 = st.uniform.pdf(xs, -2, 3)
     out2 = m.pdf(xs)
     assert_array_almost_equal(out1, out2, 16)

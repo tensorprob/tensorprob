@@ -2,26 +2,45 @@ import numpy as np
 import tensorflow as tf
 
 from .. import config
-from .base_distribution import BaseDistribution
+from ..distribution import Distribution
 
 
-class Normal(BaseDistribution):
-    def __init__(self, mu, sigma, name=None):
-        super(Normal, self).__init__(name)
+def _normal_logp(X, mu, sigma):
+    return (
+        tf.log(1 / (tf.constant(np.sqrt(2 * np.pi), dtype=config.dtype) * sigma)) -
+        (X - mu)**2 / (tf.constant(2, dtype=config.dtype) * sigma**2)
+    )
 
-        self.mu = mu
-        self.sigma = sigma
 
-        X = self
-        self._logp = (
-            tf.log(1 / (tf.constant(np.sqrt(2 * np.pi), dtype=config.dtype) * self.sigma)) -
-            (X - self.mu)**2 / (tf.constant(2, dtype=config.dtype) * self.sigma**2)
-        )
+def _normal_cdf(lim, mu, sigma):
+    return 0.5 * tf.erfc((mu - lim) / (tf.constant(np.sqrt(2), config.dtype) * sigma))
 
-        self._cdf = lambda lim: 0.5 * tf.erfc((self.mu - lim) / (tf.constant(np.sqrt(2), config.dtype) * self.sigma))
 
-    def logp(self):
-        return self._logp
+@Distribution
+def Normal(mu, sigma, name=None):
+    # TODO(chrisburr) Just use NormalN?
+    X = tf.placeholder(config.dtype, name=name)
 
-    def cdf(self, lim):
-        return self._cdf(lim)
+    Distribution.logp = _normal_logp(X, mu, sigma)
+
+    def integral(lower, upper):
+        return _normal_cdf(upper, mu, sigma) - _normal_cdf(lower, mu, sigma)
+
+    Distribution.integral = integral
+
+    return X
+
+
+# @Distribution
+# def NormalN(mus, sigmas, name=None):
+#     X = tf.placeholder(config.dtype, name=name)
+
+#     logps = [_normal_logp(X, mu, sigma) for mu, sigma in zip(mus, sigmas)]
+
+#     def cdf(lim):
+#         raise NotImplementedError
+
+#     Distribution.logp = sum(logps)
+#     Distribution.integral = lambda lower, upper: cdf(upper) - cdf(lower)
+
+#     return X
