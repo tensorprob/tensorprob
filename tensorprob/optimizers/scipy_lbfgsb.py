@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 from scipy.optimize import fmin_l_bfgs_b
 
+from .. import config
 from ..optimization_result import OptimizationResult
 from .base import BaseOptimizer
 
@@ -15,6 +16,7 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
         self.callback = callback
 
     def minimize(self, variables, cost, gradient=None, bounds=None):
+        gradient = None
         # Check if variables is iterable
         try:
             iter(variables)
@@ -25,20 +27,27 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
             if not isinstance(v, tf.Variable):
                 raise ValueError("Parameter {} is not a tensorflow variable".format(v))
 
-        variables.sort(key=lambda v: v.name)
+        tmp = zip(variables, bounds)
+        variables, bounds = zip(*sorted(tmp, key=lambda v: v[0].name))
 
         inits = self._session.run(variables)
 
         def objective(xs):
             feed_dict = {k: v for k, v in zip(variables, xs)}
             # Cast just in case the user-supplied function returns something else
-            return np.float64(self._session.run(cost, feed_dict=feed_dict))
+            val = np.float64(self._session.run(cost, feed_dict=feed_dict))
+            if config.debug:
+                print('objective', val, xs)
+            return val
 
         if gradient is not None:
             def gradient_(xs):
                 feed_dict = {k: v for k, v in zip(variables, xs)}
                 # Cast just in case the user-supplied function returns something else
-                return np.array(self._session.run(gradient, feed_dict=feed_dict))
+                val = np.array(self._session.run(gradient, feed_dict=feed_dict))
+                if config.debug:
+                    print('gradient', val, xs)
+                return val
             approx_grad = False
         else:
             gradient_ = None
@@ -64,6 +73,7 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
                 min_bounds.append((lower, upper))
         else:
             min_bounds = None
+        print(min_bounds)
 
         self.niter = 0
 
