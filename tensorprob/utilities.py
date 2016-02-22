@@ -6,7 +6,7 @@ from six.moves import zip_longest
 NAME_COUNTERS = defaultdict(lambda: 0)
 
 
-def generate_name(obj=None):
+def generate_name(obj):
     """Generate a unique name for the object in question
 
     Returns a name of the form "{calling_class_name}_{count}"
