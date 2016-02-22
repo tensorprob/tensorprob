@@ -2,9 +2,7 @@
 class BaseOptimizer(object):
 
     def __init__(self):
-        pass
-    
+        raise NotImplementedError
+
     def minimize(self, cost, gradient=None, variables=None):
-        pass
-
-
+        raise NotImplementedError
