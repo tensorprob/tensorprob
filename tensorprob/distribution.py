@@ -27,7 +27,13 @@ def _parse_bounds(lower, upper, bounds):
 
 
 def Distribution(distribution_init):
-    def f(*args, lower=None, upper=None, bounds=None, name=None):
+    def f(*args, **kwargs):
+        # Why legacy Python, why...
+        lower = kwargs.get('lower')
+        upper = kwargs.get('upper')
+        bounds = kwargs.get('bounds')
+        name = kwargs.get('name')
+
         if bounds and (lower is not None or upper is not None):
             # Only allow the use of lower/upper if bounds is None
             raise DistributionError(
