@@ -213,7 +213,9 @@ class Model(object):
 
         if optimizer is None:
             from .optimizers import ScipyLBFGSBOptimizer
-            optimizer = ScipyLBFGSBOptimizer(session=self.session)
+            optimizer = ScipyLBFGSBOptimizer()
+
+        optimizer.session = self.session
 
         return optimizer.minimize(list(self._hidden.values()), self._nll, gradient=self._nll_grad, bounds=bounds)
 

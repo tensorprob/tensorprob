@@ -9,27 +9,30 @@ from .base import BaseOptimizer
 
 class ScipyLBFGSBOptimizer(BaseOptimizer):
 
-    def __init__(self, session=None, verbose=False):
-        self.session = session or tf.Session()
+    def __init__(self, session=None, verbose=False, callback=None):
+        self._session = session or tf.Session()
         self.verbose = verbose
+        self.callback = callback
 
     def minimize(self, variables, cost, gradient=None, bounds=None):
         for v in variables:
             if not isinstance(v, tf.Variable):
                 raise ValueError("Parameter {} is not a tensorflow variable".format(v))
 
-        inits = self.session.run(variables)
+        variables.sort(key=lambda v: v.name)
+
+        inits = self._session.run(variables)
 
         def objective(xs):
             feed_dict = { k: v for k, v in zip(variables, xs) }
             # Cast just in case the user-supplied function returns something else
-            return np.float64(self.session.run(cost, feed_dict=feed_dict))
+            return np.float64(self._session.run(cost, feed_dict=feed_dict))
 
         if gradient is not None:
             def gradient_(xs):
                 feed_dict = { k: v for k, v in zip(variables, xs) }
                 # Cast just in case the user-supplied function returns something else
-                return np.array(self.session.run(gradient, feed_dict=feed_dict))
+                return np.array(self._session.run(gradient, feed_dict=feed_dict))
             approx_grad = False
         else:
             gradient_ = None
@@ -57,10 +60,12 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
             min_bounds = None
 
         if self.verbose:
-            self.fev = 0
+            self.niter = 0
             def callback(xs):
-                self.fev += 1
-                print('{: 4d}   {}'.format(self.fev, '\t'.join(map(str, xs))))
+                self.niter += 1
+                print('{: 4d}   {}'.format(self.niter, '\t'.join(map(str, xs))))
+                if self.callback is not None:
+                    self.callback(xs, self.niter)
             print('iter  ', '\t'.join([ x.name.split(':')[0] for x in variables]))
         else:
             callback = None
@@ -69,11 +74,11 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
 
         ret = OptimizationResult()
         ret.x = results[0]
-        ret.fval = results[1]
+        ret.func = results[1]
         ret.niter = results[2]['nit']
         ret.calls = results[2]['funcalls']
         ret.success = results[2]['warnflag'] == 0
 
-        #self.session.run([v.assign(x) for v, x in zip(variables, results[0])])
+        self.session.run([v.assign(x) for v, x in zip(variables, results[0])])
         return ret
 
