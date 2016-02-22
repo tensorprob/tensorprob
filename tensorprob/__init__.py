@@ -9,3 +9,4 @@ from .distribution import Distribution, DistributionError, Region
 from .model import Model, ModelError
 from .parameter import Parameter
 from .distributions import *
+from .optimizers import *
