@@ -198,7 +198,8 @@ class Model(object):
         self._set_data(args)
         return self.session.run(self._nll)
 
-    def fit(self, *args, optimizer=None):
+    def fit(self, *args, **kwargs):
+        optimizer = kwargs.get('optimizer')
         self._set_data(args)
 
         # Some optimizers need bounds
