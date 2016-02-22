@@ -1,10 +1,7 @@
 from collections import namedtuple
 
 import tensorflow as tf
-import numpy as np
-from scipy.optimize import minimize
 
-from . import config
 from . import utilities
 
 
@@ -71,7 +68,7 @@ class Model(object):
             raise ModelError("Can't call `model.observed()` inside the model block")
 
         for arg in args:
-            if not arg in self._description:
+            if arg not in self._description:
                 raise ValueError("Argument {} is not known to the model".format(arg))
 
         self._observed = dict()
@@ -81,7 +78,8 @@ class Model(object):
                 self._observed[arg] = dummy
 
     def _rewrite_graph(self, transform):
-        input_map = { k.name: v for k, v in transform.items() }
+        input_map = {k.name: v for k, v in transform.items()}
+
         # Modify the input dictionary to replace variables which have been
         # superseded with the use of combinators
         for k, v in self._silently_replace.items():
@@ -152,7 +150,6 @@ class Model(object):
 
         self.initialized = True
 
-
     def assign(self, assign_dict):
         if Model._current_model == self:
             raise ModelError("Can't call `model.assign()` inside the model block")
@@ -176,7 +173,7 @@ class Model(object):
         keys = self._hidden.keys()
         variables = list(self._hidden.values())
         values = self.session.run(variables)
-        return { k: v for k, v in zip(keys, values) }
+        return {k: v for k, v in zip(keys, values)}
 
     def _set_data(self, data):
         if not self.initialized:

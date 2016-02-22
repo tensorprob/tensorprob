@@ -30,13 +30,13 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
         inits = self._session.run(variables)
 
         def objective(xs):
-            feed_dict = { k: v for k, v in zip(variables, xs) }
+            feed_dict = {k: v for k, v in zip(variables, xs)}
             # Cast just in case the user-supplied function returns something else
             return np.float64(self._session.run(cost, feed_dict=feed_dict))
 
         if gradient is not None:
             def gradient_(xs):
-                feed_dict = { k: v for k, v in zip(variables, xs) }
+                feed_dict = {k: v for k, v in zip(variables, xs)}
                 # Cast just in case the user-supplied function returns something else
                 return np.array(self._session.run(gradient, feed_dict=feed_dict))
             approx_grad = False
@@ -66,11 +66,12 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
             min_bounds = None
 
         self.niter = 0
+
         def callback(xs):
             self.niter += 1
             if self.verbose:
                 if self.niter % 50 == 0:
-                    print('iter  ', '\t'.join([ x.name.split(':')[0] for x in variables]))
+                    print('iter  ', '\t'.join([x.name.split(':')[0] for x in variables]))
                 print('{: 4d}   {}'.format(self.niter, '\t'.join(map(str, xs))))
             if self.callback is not None:
                 self.callback(xs, self.niter)
@@ -87,4 +88,3 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
 
         self.session.run([v.assign(x) for v, x in zip(variables, results[0])])
         return ret
-
