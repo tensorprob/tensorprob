@@ -10,9 +10,9 @@ def Exponential(lambda_, name=None):
 
     Distribution.logp = tf.log(lambda_) - lambda_*X
 
-    def cdf(lim):
-        return tf.constant(1, dtype=config.dtype) - tf.exp(-lambda_*lim)
+    def integral(lower, upper):
+        return tf.exp(-lambda_*lower) - tf.exp(-lambda_*upper)
 
-    Distribution.integral = lambda lower, upper: cdf(upper) - cdf(lower)
+    Distribution.integral = integral
 
     return X

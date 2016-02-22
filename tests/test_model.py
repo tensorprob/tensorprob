@@ -5,6 +5,7 @@ import scipy.stats as st
 
 import tensorprob as tp
 
+
 def test_creation():
     model = tp.Model()
     with model:
@@ -99,9 +100,9 @@ def test_assign():
     model.observed(X)
     feed = {mu: 42, sigma: 1}
     model.initialize(feed)
-    model.assign({mu: 1, sigma:0})
-    model.assign({mu: -100, sigma:0})
-    assert model.state == {mu: -100, sigma:0}
+    model.assign({mu: 1, sigma: 0})
+    model.assign({mu: -100, sigma: 0})
+    assert model.state == {mu: -100, sigma: 0}
     model.assign(feed)
     assert model.state == feed
 
@@ -125,7 +126,8 @@ def test_assign_wrong_container():
         sigma = tp.Parameter(lower=0)
         X = tp.Normal(mu, sigma)
     model.observed(X)
-    model.assign([1,2,3])
+    model.assign([1, 2, 3])
+
 
 @raises(tp.model.ModelError)
 def test_observed_in_model():
@@ -135,5 +137,3 @@ def test_observed_in_model():
         sigma = tp.Parameter(lower=0)
         X = tp.Normal(mu, sigma)
         model.observed(X)
-
-

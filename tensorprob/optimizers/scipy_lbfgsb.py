@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 from scipy.optimize import fmin_l_bfgs_b
 
+from .. import config
 from ..optimization_result import OptimizationResult
 from .base import BaseOptimizer
 
@@ -25,20 +26,24 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
             if not isinstance(v, tf.Variable):
                 raise ValueError("Parameter {} is not a tensorflow variable".format(v))
 
-        variables.sort(key=lambda v: v.name)
-
         inits = self._session.run(variables)
 
         def objective(xs):
             feed_dict = {k: v for k, v in zip(variables, xs)}
             # Cast just in case the user-supplied function returns something else
-            return np.float64(self._session.run(cost, feed_dict=feed_dict))
+            val = np.float64(self._session.run(cost, feed_dict=feed_dict))
+            if config.debug:
+                print('objective', val, xs)
+            return val
 
         if gradient is not None:
             def gradient_(xs):
                 feed_dict = {k: v for k, v in zip(variables, xs)}
                 # Cast just in case the user-supplied function returns something else
-                return np.array(self._session.run(gradient, feed_dict=feed_dict))
+                val = np.array(self._session.run(gradient, feed_dict=feed_dict))
+                if config.debug:
+                    print('gradient', val, xs)
+                return val
             approx_grad = False
         else:
             gradient_ = None
