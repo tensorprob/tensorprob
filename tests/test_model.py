@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 from nose.tools import raises
 from numpy.testing import assert_almost_equal
 import scipy.stats as st
@@ -15,6 +16,15 @@ def test_creation():
 @raises(tp.model.ModelError)
 def test_scalar_creation_outside_with():
     tp.Parameter(name='mu')
+
+
+def test_distribution_creation_global_graph():
+    # Distribution creation doesn't modify the global graph
+    before = tf.get_default_graph().as_graph_def()
+    with tp.Model() as model:
+        mu = tp.Parameter()
+    after = tf.get_default_graph().as_graph_def()
+    assert before == after
 
 
 @raises(tp.model.ModelError)
