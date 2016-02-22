@@ -32,19 +32,6 @@ def test_nesting_models():
             raise NotImplementedError
 
 
-def test_track_variables():
-    with tp.Model() as model:
-        mu = tp.Parameter(name='mu')
-    assert(mu in model._components)
-
-
-def test_untrack_variables():
-    with tp.Model() as model:
-        mu = tp.Parameter(name='mu')
-    model.untrack_variable(mu)
-    assert(mu not in model._components)
-
-
 def test_observed():
     with tp.Model() as model:
         mu = tp.Parameter()
@@ -66,18 +53,8 @@ def test_observed_erorr_on_non_distribution():
 @raises(tp.model.ModelError)
 def test_prepare_without_observed():
     with tp.Model() as model:
-        pass
-    model._prepare_model([])
-
-
-@raises(tp.model.ModelError)
-def test_prepare_with_incorrect_parameters():
-    with tp.Model() as model:
         mu = tp.Parameter()
-        sigma = tp.Parameter()
-        X = tp.Normal(mu, sigma)
-    model.observed(X)
-    model._prepare_model([])
+    model.initialize({mu: 42})
 
 
 def test_nll():
@@ -89,7 +66,7 @@ def test_nll():
 
     xs = np.linspace(-5, 5, 100)
     out1 = -sum(st.norm.logpdf(xs, 0, 1))
-    model.assign({
+    model.initialize({
         mu: 0,
         sigma: 1
     })
@@ -105,7 +82,7 @@ def test_fit():
         X = tp.Normal(mu, sigma)
 
     model.observed(X)
-    model.assign({mu: 2, sigma: 2})
+    model.initialize({mu: 2, sigma: 2})
     np.random.seed(0)
     data = np.random.normal(0, 1, 100)
     results = model.fit(data)
@@ -121,6 +98,10 @@ def test_assign():
 
     model.observed(X)
     feed = {mu: 42, sigma: 1}
+    model.initialize(feed)
+    model.assign({mu: 1, sigma:0})
+    model.assign({mu: -100, sigma:0})
+    assert model.state == {mu: -100, sigma:0}
     model.assign(feed)
     assert model.state == feed
 

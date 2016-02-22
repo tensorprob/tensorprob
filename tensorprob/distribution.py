@@ -1,3 +1,4 @@
+import tensorflow as tf
 from collections import namedtuple
 
 import numpy as np
@@ -38,6 +39,9 @@ def Distribution(distribution_init):
         Distribution.logp = None
         Distribution.integral = None
         variables = distribution_init(*args, name=name)
+
+        if lower is not None and upper is not None:
+            Distribution.logp = Distribution.logp - tf.log(Distribution.integral(lower, upper))
 
         if Distribution.logp is None:
             raise DistributionError('Distributions must define logp')

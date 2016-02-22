@@ -31,7 +31,7 @@ def test_fit():
         X = tp.Normal(mu, sigma)
 
     model.observed(X)
-    model.assign({mu: 2, sigma: 2})
+    model.initialize({mu: 2, sigma: 2})
     np.random.seed(0)
     data = np.random.normal(0, 1, 100)
     results = model.fit(data)

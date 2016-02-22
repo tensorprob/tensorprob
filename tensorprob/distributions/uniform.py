@@ -8,9 +8,9 @@ from ..distribution import Distribution
 def Uniform(name=None):
     X = tf.placeholder(config.dtype, name=name)
 
-    Distribution.logp = tf.constant(1, dtype=config.dtype)
+    Distribution.logp = tf.constant(0, dtype=config.dtype)
 
-    Distribution.integral = lambda lower, upper: 1 / (upper - lower)
+    Distribution.integral = lambda lower, upper: tf.cast(upper, tf.float64) - tf.cast(lower, tf.float64)
 
     return X
 

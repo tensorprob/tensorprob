@@ -43,6 +43,8 @@ class Model(object):
         # the global graph
         self.model_graph = tf.get_default_graph()
 
+        # Whether `model.initialize()` has been called
+        self.initialized = False
         self.name = name or utilities.generate_name(self.__class__)
 
     @utilities.classproperty
@@ -88,11 +90,15 @@ class Model(object):
             input_map[k.name] = self._observed[v]
 
         with self.session.graph.as_default():
-            tf.import_graph_def(
-                    self.model_graph.as_graph_def(),
-                    input_map=input_map,
-                    name='added',
-            )
+            try:
+                tf.import_graph_def(
+                        self.model_graph.as_graph_def(),
+                        input_map=input_map,
+                        name='added',
+                )
+            except:
+                # Handle the case where there is no likelihood
+                pass
 
     def _get_rewritten(self, tensor):
         return self.session.graph.get_tensor_by_name('added/' + tensor.name)
@@ -144,6 +150,8 @@ class Model(object):
             self._nll = -tf.reduce_sum(tf.add_n(logps))
             self._nll_grad = tf.gradients(self._nll, list(self._hidden.values()))
 
+        self.initialized = True
+
 
     def assign(self, assign_dict):
         if Model._current_model == self:
@@ -171,6 +179,8 @@ class Model(object):
         return { k: v for k, v in zip(keys, values) }
 
     def _set_data(self, data):
+        if not self.initialized:
+            raise ModelError("Can't use the model before it has been initialized with `model.initialize(...)`")
         # TODO(ibab) make sure that args all have the correct shape
         if len(data) != len(self._observed):
             raise ValueError("Different number of arguments passed to model method than declared in `model.observed()`")
