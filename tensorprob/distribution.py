@@ -34,6 +34,9 @@ def Distribution(distribution_init):
         bounds = kwargs.get('bounds')
         name = kwargs.get('name')
 
+        if model.Model is None or tf.get_default_graph() is not model.Model.current_model._model_graph:
+            raise model.ModelError("Can't define distributions outside of a model block")
+
         if bounds and (lower is not None or upper is not None):
             # Only allow the use of lower/upper if bounds is None
             raise DistributionError(

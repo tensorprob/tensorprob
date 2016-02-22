@@ -35,7 +35,7 @@ class Model(object):
         # `tensorflow.placeholder`s which have been substituted using combinators
         self._silently_replace = dict()
         # The graph that the user's model is originally constructed in
-        self.model_graph = tf.Graph()
+        self._model_graph = tf.Graph()
         # The session that we will eventually run with
         self.session = tf.Session(graph=tf.Graph())
 
@@ -53,7 +53,7 @@ class Model(object):
         if Model._current_model is not None:
             raise ModelError("Can't nest models within each other")
         Model._current_model = self
-        self.graph_ctx = self.model_graph.as_default()
+        self.graph_ctx = self._model_graph.as_default()
         self.graph_ctx.__enter__()
         return self
 
@@ -94,7 +94,7 @@ class Model(object):
         with self.session.graph.as_default():
             try:
                 tf.import_graph_def(
-                        self.model_graph.as_graph_def(),
+                        self._model_graph.as_graph_def(),
                         input_map=input_map,
                         name='added',
                 )
