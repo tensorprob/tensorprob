@@ -6,22 +6,25 @@ from ..distribution import Distribution
 
 @Distribution
 def Polynomial(coefficients, name=None):
+    assert len(coefficients) >= 2
+
     for coeff in coefficients:
         assert isinstance(coeff, tf.Tensor)
 
     X = tf.placeholder(config.dtype, name=name)
 
-    pdf = coefficients[0]
-    for i, coeff in enumerate(coefficients[1:], start=1):
-        pdf += coeff * X**i
-    Distribution.logp = tf.log(pdf)
+    pdf = []
+    for i, coeff in enumerate(coefficients):
+        pdf.append(coeff * X**tf.constant(i, dtype=config.dtype))
+    Distribution.logp = tf.log(tf.add_n(pdf))
 
-    def cdf(lim):
-        result = 0
-        for i, coeff in enumerate(coefficients[1:]):
-            result += coefficients * lim**i
-        return result
+    def integrate(lower, upper):
+        result = []
+        for i, coeff in enumerate(coefficients, start=1):
+            order = tf.constant(i, dtype=config.dtype)
+            result.append(coeff/order * (upper**order - lower**order))
+        return tf.add_n(result)
 
-    Distribution.integral = lambda lower, upper: cdf(upper) - cdf(lower)
+    Distribution.integral = integrate
 
     return X

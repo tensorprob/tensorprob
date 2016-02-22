@@ -23,7 +23,10 @@ def Normal(mu, sigma, name=None):
 
     Distribution.logp = _normal_logp(X, mu, sigma)
 
-    Distribution.integral = lambda lower, upper: _normal_cdf(upper) - _normal_cdf(lower)
+    def integral(lower, upper):
+        return _normal_cdf(upper, mu, sigma) - _normal_cdf(lower, mu, sigma)
+
+    Distribution.integral = integral
 
     return X
 

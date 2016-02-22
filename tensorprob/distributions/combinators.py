@@ -21,7 +21,20 @@ def Mix2(f, A, B, name=None):
 
     # Modify the current model to recognize that X and Y have been removed
     for dist in A, B:
-        Model._current_model._silently_replace[dist] = X
-        del Model._current_model._description[dist]
+        # TODO(chrisburr) Explain
+        # TODO(chrisburr) Add test for combinators of combinators
+        if dist in Model._current_model._silently_replace.values():
+            # We need to copy the items to a list as we're deleting items from
+            # the dictionary
+            for key, value in list(Model._current_model._silently_replace.items()):
+                if value == dist:
+                    del Model._current_model._silently_replace[key]
+                    Model._current_model._silently_replace[key] = X
+                    if dist in Model._current_model._description:
+                        del Model._current_model._description[dist]
+
+        else:
+            Model._current_model._silently_replace[dist] = X
+            del Model._current_model._description[dist]
 
     return X
