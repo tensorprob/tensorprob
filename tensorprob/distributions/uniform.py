@@ -10,7 +10,7 @@ def Uniform(name=None):
 
     Distribution.logp = tf.constant(0, dtype=config.dtype)
 
-    Distribution.integral = lambda lower, upper: tf.cast(upper, tf.float64) - tf.cast(lower, tf.float64)
+    Distribution.integral = lambda lower, upper: tf.cast(upper, config.dtype) - tf.cast(lower, config.dtype)
 
     return X
 
@@ -19,8 +19,8 @@ def Uniform(name=None):
 def UniformInt(name=None):
     X = tf.placeholder(config.int_dtype, name=name)
 
-    Distribution.logp = tf.constant(1, dtype=config.int_dtype)
+    Distribution.logp = tf.constant(0, dtype=config.dtype)
 
-    Distribution.integral = lambda lower, upper: 1 / (upper - lower)
+    Distribution.integral = lambda lower, upper: tf.cast(tf.floor(upper) - tf.ceil(lower), config.dtype)
 
     return X
