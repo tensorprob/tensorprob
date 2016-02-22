@@ -34,11 +34,10 @@ class Model(object):
         # A dictionary mapping `tensorflow.placeholder`s of variables to new
         # `tensorflow.placeholder`s which have been substituted using combinators
         self._silently_replace = dict()
+        # The graph that the user's model is originally constructed in
+        self.model_graph = tf.Graph()
         # The session that we will eventually run with
         self.session = tf.Session(graph=tf.Graph())
-        # TODO(ibab) Put in some work so that the user's model doesn't pollute
-        # the global graph
-        self.model_graph = tf.get_default_graph()
 
         # Whether `model.initialize()` has been called
         self.initialized = False
@@ -54,10 +53,15 @@ class Model(object):
         if Model._current_model is not None:
             raise ModelError("Can't nest models within each other")
         Model._current_model = self
+        self.graph_ctx = self.model_graph.as_default()
+        self.graph_ctx.__enter__()
         return self
 
     def __exit__(self, e_type, e, tb):
         Model._current_model = None
+
+        self.graph_ctx.__exit__(e_type, e, tb)
+        self.graph_ctx = None
 
         # Re-raise underlying exceptions
         if e_type is not None:
