@@ -79,7 +79,7 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
                     print('iter  ', '\t'.join([x.name.split(':')[0] for x in variables]))
                 print('{: 4d}   {}'.format(self.niter, '\t'.join(map(str, xs))))
             if self.callback is not None:
-                self.callback(xs, self.niter)
+                self.callback(xs)
 
         results = fmin_l_bfgs_b(objective, inits, fprime=gradient_, callback=callback, approx_grad=approx_grad, bounds=min_bounds)
 
@@ -91,5 +91,4 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
         ret.message = results[2]['task'].decode().lower()
         ret.success = results[2]['warnflag'] == 0
 
-        self.session.run([v.assign(x) for v, x in zip(variables, results[0])])
         return ret
