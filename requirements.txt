@@ -2,3 +2,4 @@ tensorflow==0.7.0
 colorlog
 emcee
 iminuit
+numdifftools==0.9.14
