@@ -145,18 +145,6 @@ class Model(object):
             raise ModelError("Not all latent variables have been passed in a call to `model.initialize().\n\
                     Missing variables: {}".format(hidden.difference(assign_dict.keys())))
 
-        def tensor_or_not_inf(obj):
-            return isinstance(obj, tf.Tensor) or not np.isinf(obj)
-
-        with self._model_graph.as_default():
-            logps = []
-            for var in self._observed:
-                logp, integral, bounds = self._description[var]
-                if tensor_or_not_inf(bounds[0].lower) and tensor_or_not_inf(bounds[0].upper):
-                    normalisation = tf.add_n([integral(l, u) for l, u in bounds])
-                    logp = logp - tf.log(normalisation)
-                logps.append(logp)
-
         # Add variables to the execution graph
         with self.session.graph.as_default():
             self._hidden = dict()
@@ -173,6 +161,21 @@ class Model(object):
 
         all_vars = self._hidden.copy()
         all_vars.update(self._observed)
+
+        # Get the nomalised list of log probabilites
+        def is_finite(obj):
+            return isinstance(obj, tf.Tensor) or np.isfinite(obj)
+
+        logps = []
+        with self._model_graph.as_default():
+            for var in self._observed:
+                logp, integral, bounds = self._description[var]
+
+                # Normalise as required
+                if is_finite(bounds[0].lower) and is_finite(bounds[0].upper):
+                    logp -= tf.log(tf.add_n([integral(l, u) for l, u in bounds]))
+
+                logps.append(logp)
 
         self._rewrite_graph(all_vars)
 
