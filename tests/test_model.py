@@ -147,3 +147,14 @@ def test_observed_in_model():
         sigma = tp.Parameter(lower=0)
         X = tp.Normal(mu, sigma)
         model.observed(X)
+
+def test_variable_independent():
+    with tp.Model() as model:
+        a = tp.Parameter()
+        b = tp.Parameter()
+    model.observed(b)
+    model.initialize({
+        a: 1,
+    })
+    model.fit([1,2,3])
+

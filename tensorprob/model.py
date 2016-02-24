@@ -1,8 +1,11 @@
 from collections import namedtuple
+import logging
+logger = logging.getLogger(__name__)
 
 import tensorflow as tf
 
 from . import utilities
+from . import config
 
 
 # Used to describe a variable's role in the model
@@ -154,6 +157,12 @@ class Model(object):
             self._nll = -tf.add_n([tf.reduce_sum(logp) for logp in logps])
             variables = [self._hidden[k] for k in self._hidden_sorted]
             self._nll_grad = tf.gradients(self._nll, variables)
+            for i, (v, g) in enumerate(zip(variables, self._nll_grad)):
+                if g is None:
+                    self._nll_grad[i] = tf.constant(0, dtype=config.dtype)
+                    logger.warn('Model is independent of variable {}'.format(
+                        v.name.split(':')[0]
+                    ))
 
         self.initialized = True
 
