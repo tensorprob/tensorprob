@@ -15,9 +15,7 @@ def Mix2(f, A, B, name=None):
 
     Distribution.logp = tf.log(f*tf.exp(a_logp) + (1-f)*tf.exp(b_logp))
 
-    def integral(lower, upper):
-        return f*a_integral(lower, upper) + (1-f)*b_integral(lower, upper)
-    Distribution.integral = integral
+    Distribution.integral = lambda l, u: tf.constant(1, dtype=config.dtype)
 
     # Modify the current model to recognize that X and Y have been removed
     for dist in A, B:
