@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, Iterable
 
 from six.moves import zip_longest
 
@@ -32,3 +32,16 @@ def grouper(iterable, n=2, fillvalue=None):
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
     args = [iter(iterable)] * n
     return zip_longest(*args, fillvalue=fillvalue)
+
+
+def flatten(l):
+    """Recursivly flattens a interable argument, ignoring strings and bytes.
+
+    Taken from: http://stackoverflow.com/a/2158532
+    """
+    for el in l:
+        if isinstance(el, Iterable) and not isinstance(el, (str, bytes)):
+            for sub in flatten(el):
+                yield sub
+        else:
+            yield el
