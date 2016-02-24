@@ -1,7 +1,14 @@
 import numpy as np
 from nose.tools import raises
 
-from tensorprob import Model, Region, config, Distribution, DistributionError
+from tensorprob import (
+    config,
+    Distribution,
+    DistributionError,
+    Model,
+    ModelError,
+    Region,
+)
 import tensorflow as tf
 
 
@@ -21,6 +28,15 @@ def get_fake_distribution(logp=-42, integral=-42, dimension=1):
         return variables
 
     return Distribution(FakeDistribution)
+
+
+@raises(ModelError)
+def test_inside_another_graph():
+    FakeDistribution = get_fake_distribution()
+    other_sessions = tf.Session()
+    with Model():
+        with other_sessions.graph.as_default():
+            FakeDistribution()
 
 
 @raises(DistributionError)
