@@ -2,12 +2,15 @@ from collections import namedtuple
 import logging
 logger = logging.getLogger('tensorprob')
 
+import numpy as np
 import tensorflow as tf
 
 from . import utilities
 from . import config
 
 
+# Used to specify valid ranges for variables
+Region = namedtuple('Region', ['lower', 'upper'])
 # Used to describe a variable's role in the model
 Description = namedtuple('Description', ['logp', 'integral', 'bounds'])
 
@@ -142,6 +145,18 @@ class Model(object):
             raise ModelError("Not all latent variables have been passed in a call to `model.initialize().\n\
                     Missing variables: {}".format(hidden.difference(assign_dict.keys())))
 
+        def tensor_or_not_inf(obj):
+            return isinstance(obj, tf.Tensor) or not np.isinf(obj)
+
+        with self._model_graph.as_default():
+            logps = []
+            for var in self._observed:
+                logp, integral, bounds = self._description[var]
+                if tensor_or_not_inf(bounds[0].lower) and tensor_or_not_inf(bounds[0].upper):
+                    normalisation = tf.add_n([integral(l, u) for l, u in bounds])
+                    logp = logp - tf.log(normalisation)
+                logps.append(logp)
+
         # Add variables to the execution graph
         with self.session.graph.as_default():
             self._hidden = dict()
@@ -162,9 +177,7 @@ class Model(object):
         self._rewrite_graph(all_vars)
 
         with self.session.graph.as_default():
-            logps = []
-            for var in self._observed:
-                logps.append(self._get_rewritten(self._description[var].logp))
+            logps = [self._get_rewritten(logp) for logp in logps]
 
             self._pdf = tf.exp(tf.add_n(logps))
             self._nll = -tf.add_n([tf.reduce_sum(logp) for logp in logps])

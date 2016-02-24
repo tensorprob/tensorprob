@@ -21,8 +21,8 @@ def test_scalar_creation_outside_with():
 def test_distribution_creation_global_graph():
     # Distribution creation doesn't modify the global graph
     before = tf.get_default_graph().as_graph_def()
-    with tp.Model() as model:
-        mu = tp.Parameter()
+    with tp.Model():
+        tp.Parameter()
     after = tf.get_default_graph().as_graph_def()
     assert before == after
 

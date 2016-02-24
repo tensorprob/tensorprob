@@ -1,13 +1,10 @@
-from collections import Iterable, namedtuple
+from collections import Iterable
 
 import numpy as np
 import tensorflow as tf
 
 from . import utilities
-from .model import Description, Model, ModelError
-
-
-Region = namedtuple('Region', ['lower', 'upper'])
+from .model import Description, Model, ModelError, Region
 
 
 class DistributionError(Exception):
@@ -58,12 +55,6 @@ def Distribution(distribution_init):
 
         if Distribution.integral is None:
             raise NotImplementedError('Numeric integrals are not yet supported')
-
-        # Normalise the distribution's logp
-        if lower is not None and upper is not None:
-            Distribution.logp = (
-                Distribution.logp - tf.log(Distribution.integral(lower, upper))
-            )
 
         # Parse the bounds to be a list of lists of Regions
         try:
