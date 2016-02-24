@@ -20,9 +20,6 @@ def _parse_bounds(lower, upper, bounds):
         upper = np.inf if upper is None else upper
         return [Region(lower, upper)]
 
-    # Convert bounds to be a list of Region tuples
-    if not isinstance(bounds[0], tuple):
-        bounds = utilities.grouper(bounds)
     bounds = [Region(*b) for b in bounds]
     if None in utilities.flatten(bounds):
         raise ValueError
@@ -70,9 +67,7 @@ def Distribution(distribution_init):
 
         # Parse the bounds to be a list of lists of Regions
         try:
-            if len(variables) == len(bounds) and \
-                    isinstance(bounds[0], Iterable) and \
-                    not isinstance(bounds[0], tuple):
+            if len(variables) == len(bounds) and isinstance(bounds[0][0], Iterable):
                 bounds = [_parse_bounds(lower, upper, b) for b in bounds]
             else:
                 # Set the same bounds for all variables

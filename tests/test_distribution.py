@@ -99,15 +99,13 @@ def test_bounds_1D():
         B = FakeDistribution(lower=1.1)
         C = FakeDistribution(upper=2.2)
         D = FakeDistribution(lower=3.3, upper=4.4)
-        E = FakeDistribution(bounds=[5.5, 6.6, 7.7, 8.8, 9.9, 11.11])
-        F = FakeDistribution(bounds=[(5.5, 6.6), (7.7, 8.8), (9.9, 11.11)])
+        E = FakeDistribution(bounds=[(5.5, 6.6), (7.7, 8.8), (9.9, 11.11)])
 
     assert model._description[A].bounds == [Region(-np.inf, np.inf)]
     assert model._description[B].bounds == [Region(1.1, np.inf)]
     assert model._description[C].bounds == [Region(-np.inf, 2.2)]
     assert model._description[D].bounds == [Region(3.3, 4.4)]
     assert model._description[E].bounds == [Region(5.5, 6.6), Region(7.7, 8.8), Region(9.9, 11.11)]
-    assert model._description[F].bounds == [Region(5.5, 6.6), Region(7.7, 8.8), Region(9.9, 11.11)]
 
 
 def test_bounds_ND():
@@ -117,15 +115,9 @@ def test_bounds_ND():
         B1, B2, B3 = FakeDistribution3D(lower=1.1)
         C1, C2, C3 = FakeDistribution3D(upper=2.2)
         D1, D2, D3 = FakeDistribution3D(lower=3.3, upper=4.4)
-        E1, E2, E3 = FakeDistribution3D(bounds=[5.5, 6.6, 7.7, 8.8, 9.9, 11.1])
-        F1, F2, F3 = FakeDistribution3D(bounds=[(5.5, 6.6), (7.7, 8.8), (9.9, 11.1)])
-        G1, G2, G3 = FakeDistribution3D(bounds=[
+        E1, E2, E3 = FakeDistribution3D(bounds=[(5.5, 6.6), (7.7, 8.8), (9.9, 11.1)])
+        F1, F2, F3 = FakeDistribution3D(bounds=[
             [(1.1, 2.1), (3.1, 4.1), (5.1, 6.1)],
-            [1.2, 2.2, 3.2, 4.2, 5.2, 6.2],
-            [1.3, 2.3, 3.3, 4.3, 5.3, 6.3],
-        ])
-        H1, H2, H3 = FakeDistribution3D(bounds=[
-            [1.1, 2.1, 3.1, 4.1, 5.1, 6.1],
             [(1.2, 2.2), (3.2, 4.2), (5.2, 6.2)],
             [(1.3, 2.3), (3.3, 4.3), (5.3, 6.3)],
         ])
@@ -150,14 +142,6 @@ def test_bounds_ND():
     assert model._description[E2].bounds == [Region(5.5, 6.6), Region(7.7, 8.8), Region(9.9, 11.1)]
     assert model._description[E3].bounds == [Region(5.5, 6.6), Region(7.7, 8.8), Region(9.9, 11.1)]
 
-    assert model._description[F1].bounds == [Region(5.5, 6.6), Region(7.7, 8.8), Region(9.9, 11.1)]
-    assert model._description[F2].bounds == [Region(5.5, 6.6), Region(7.7, 8.8), Region(9.9, 11.1)]
-    assert model._description[F3].bounds == [Region(5.5, 6.6), Region(7.7, 8.8), Region(9.9, 11.1)]
-
-    assert model._description[G1].bounds == [Region(1.1, 2.1), Region(3.1, 4.1), Region(5.1, 6.1)]
-    assert model._description[G2].bounds == [Region(1.2, 2.2), Region(3.2, 4.2), Region(5.2, 6.2)]
-    assert model._description[G3].bounds == [Region(1.3, 2.3), Region(3.3, 4.3), Region(5.3, 6.3)]
-
-    assert model._description[H1].bounds == [Region(1.1, 2.1), Region(3.1, 4.1), Region(5.1, 6.1)]
-    assert model._description[H2].bounds == [Region(1.2, 2.2), Region(3.2, 4.2), Region(5.2, 6.2)]
-    assert model._description[H3].bounds == [Region(1.3, 2.3), Region(3.3, 4.3), Region(5.3, 6.3)]
+    assert model._description[F1].bounds == [Region(1.1, 2.1), Region(3.1, 4.1), Region(5.1, 6.1)]
+    assert model._description[F2].bounds == [Region(1.2, 2.2), Region(3.2, 4.2), Region(5.2, 6.2)]
+    assert model._description[F3].bounds == [Region(1.3, 2.3), Region(3.3, 4.3), Region(5.3, 6.3)]
