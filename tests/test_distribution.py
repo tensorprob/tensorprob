@@ -70,17 +70,15 @@ def test_using_upper_and_bounds():
 @raises(ValueError)
 def test_bounds_invalid_odd():
     FakeDistribution = get_fake_distribution()
-    with Model() as model:
-        X = FakeDistribution(bounds=[5.5, 6.6, 7.7, 8.8, 9.9])
-    print(model._description[X].bounds)
+    with Model():
+        FakeDistribution(bounds=[5.5, 6.6, 7.7, 8.8, 9.9])
 
 
 @raises(ValueError)
 def test_bounds_invalid_shape_1():
     FakeDistribution = get_fake_distribution()
-    with Model() as model:
-        X = FakeDistribution(bounds=[[1.1, 2.2, 3.3]])
-    print(model._description[X].bounds)
+    with Model():
+        FakeDistribution(bounds=[[1.1, 2.2, 3.3]])
 
 
 @raises(ValueError)
@@ -163,33 +161,3 @@ def test_bounds_ND():
     assert model._description[H1].bounds == [Region(1.1, 2.1), Region(3.1, 4.1), Region(5.1, 6.1)]
     assert model._description[H2].bounds == [Region(1.2, 2.2), Region(3.2, 4.2), Region(5.2, 6.2)]
     assert model._description[H3].bounds == [Region(1.3, 2.3), Region(3.3, 4.3), Region(5.3, 6.3)]
-
-# def test_n_dimensional():
-#     FakeDistribution = get_fake_distribution(dimension=3)
-#     with Model():
-#         variables = FakeDistribution()
-
-#     assert len(variables) == 3
-#     assert isinstance(variables[2], tf.Tensor)
-
-
-# def test_multiple_bounds_for_n_dimensional():
-#     pass
-
-# def test_BaseDistribution_is_tensor():
-#    sess = tf.Session()
-#    with Model() as model:
-#        X = BaseDistribution()
-#        assert isinstance(X, tf.Tensor)
-#        # In order to prevent it from failing
-#        model.untrack_variable(X)
-
-
-# def test_BaseDistribution_can_eval():
-#    sess = tf.Session()
-#    with Model() as model:
-#        X = BaseDistribution()
-#        # In order to prevent it from failing
-#        model.untrack_variable(X)
-
-#    assert(sess.run(42 * X, feed_dict={X: 1.0}) == 42.0)
