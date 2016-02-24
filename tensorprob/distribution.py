@@ -1,10 +1,10 @@
-import tensorflow as tf
-from collections import namedtuple
+from collections import Iterable, namedtuple
 
 import numpy as np
+import tensorflow as tf
 
-from . import model
 from . import utilities
+from .model import Description, Model, ModelError
 
 
 Region = namedtuple('Region', ['lower', 'upper'])
@@ -23,7 +23,10 @@ def _parse_bounds(lower, upper, bounds):
     # Convert bounds to be a list of Region tuples
     if not isinstance(bounds[0], tuple):
         bounds = utilities.grouper(bounds)
-    return [Region(*b) for b in bounds]
+    bounds = [Region(*b) for b in bounds]
+    if None in utilities.flatten(bounds):
+        raise ValueError
+    return bounds
 
 
 def Distribution(distribution_init):
@@ -31,17 +34,16 @@ def Distribution(distribution_init):
         # Why legacy Python, why...
         lower = kwargs.get('lower')
         upper = kwargs.get('upper')
-        bounds = kwargs.get('bounds')
+        bounds = kwargs.get('bounds', [])
         name = kwargs.get('name')
 
-        if model.Model is None or tf.get_default_graph() is not model.Model.current_model._model_graph:
-            raise model.ModelError("Can't define distributions outside of a model block")
+        if Model is None or tf.get_default_graph() is not Model.current_model._model_graph:
+            raise ModelError(
+                "Can't define distributions outside of a model block")
 
         if bounds and (lower is not None or upper is not None):
-            # Only allow the use of lower/upper if bounds is None
             raise DistributionError(
-                "'lower'/'upper' can't be used in combination with 'bounds'"
-            )
+                "'lower'/'upper' can't be used incombination with 'bounds'")
 
         name = name or utilities.generate_name(distribution_init)
 
@@ -49,36 +51,40 @@ def Distribution(distribution_init):
         Distribution.integral = None
         variables = distribution_init(*args, name=name)
 
-        if lower is not None and upper is not None:
-            Distribution.logp = Distribution.logp - tf.log(Distribution.integral(lower, upper))
+        # One dimensional distributions return a value, convert it to a tuple
+        if not isinstance(variables, tuple):
+            variables = (variables,)
 
+        # Ensure the distribution has set the required properties
         if Distribution.logp is None:
             raise DistributionError('Distributions must define logp')
 
         if Distribution.integral is None:
             raise NotImplementedError('Numeric integrals are not yet supported')
 
-        if isinstance(variables, tuple):
-            if isinstance(bounds[0][0], Region):
-                if len(variables) != len(bounds):
-                    raise DistributionError(
-                        "Either a single set of 'bounds' must be provided or "
-                        "the number of bounds ({0}) must equal the "
-                        "dimensionality of the distribution ({1})"
-                        .format(len(bounds), len(variables))
-                    )
-            else:
-                # Set the same bounds for all variables
-                bounds = [bounds]*len(variables)
-        else:
-            # We have a 1D distribution so convert variables/bounds to tuples
-            variables = (variables,)
-            bounds = (bounds,)
-
-        for variable, b in zip(variables, bounds):
-            model.Model.current_model._description[variable] = model.Description(
-                Distribution.logp, Distribution.integral, _parse_bounds(lower, upper, b)
+        # Normalise the distribution's logp
+        if lower is not None and upper is not None:
+            Distribution.logp = (
+                Distribution.logp - tf.log(Distribution.integral(lower, upper))
             )
 
-        return variable
+        # Parse the bounds to be a list of lists of Regions
+        try:
+            if len(variables) == len(bounds) and \
+                    isinstance(bounds[0], Iterable) and \
+                    not isinstance(bounds[0], tuple):
+                bounds = [_parse_bounds(lower, upper, b) for b in bounds]
+            else:
+                # Set the same bounds for all variables
+                bounds = [_parse_bounds(lower, upper, bounds)]*len(variables)
+        except Exception:
+            raise ValueError("Failed to parse 'bounds'")
+
+        # Add the new variables to the model description
+        for variable, bound in zip(variables, bounds):
+            Model.current_model._description[variable] = Description(
+                Distribution.logp, Distribution.integral, bound
+            )
+
+        return variable if len(variables) == 1 else variables
     return f
