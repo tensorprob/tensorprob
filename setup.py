@@ -13,5 +13,6 @@ setup(name='tensorprob',
       packages=[
           'tensorprob',
           'tensorprob.distributions',
+          'tensorprob.optimizers',
       ],
       zip_safe=False)
