@@ -1,4 +1,4 @@
-site_name: TensorProb documentation
+site_name: TensorProb
 theme: readthedocs
 docs_dir: sources
 repo_url: http://github.com/ibab/tensorprob
@@ -9,3 +9,4 @@ dev_addr: '0.0.0.0:8000'
 
 pages:
 - Home: index.md
+- Model: model.md

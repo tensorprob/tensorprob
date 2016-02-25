@@ -1,6 +1,7 @@
 ## Custom .gitignore:
 
 # Documentation site
+docs/sources/
 docs/site/
 
 # Coverage information
