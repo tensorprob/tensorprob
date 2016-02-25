@@ -51,7 +51,8 @@ def Mix2(f, A, B, name=None):
             # the dictionary
             for key, value in list(Model._current_model._silently_replace.items()):
                 if value == dist:
-                    del Model._current_model._silently_replace[key]
+                    Model._current_model._silently_replace[value] = X
+                    del Model._current_model._silently_replace[key]  # TODO(chrisburr) Remove
                     Model._current_model._silently_replace[key] = X
                     if dist in Model._current_model._description:
                         del Model._current_model._description[dist]
