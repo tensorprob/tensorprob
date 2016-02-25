@@ -34,6 +34,7 @@ class Model(object):
         # variables of the model to `tensorflow.Variables` carrying the current state
         # of the model
         self._hidden = None
+        self._setters = None
         # A dictionary mapping `tensorflow.placeholder`s of variables to new
         # `tensorflow.placeholder`s which have been substituted using combinators
         self._silently_replace = dict()
@@ -66,6 +67,9 @@ class Model(object):
         self.graph_ctx.__exit__(e_type, e, tb)
         self.graph_ctx = None
 
+        # We shouldn't be allowed to edit this one anymore
+        self._model_graph.finalize()
+
         # Re-raise underlying exceptions
         if e_type is not None:
             raise
@@ -79,10 +83,14 @@ class Model(object):
                 raise ValueError("Argument {} is not known to the model".format(arg))
 
         self._observed = dict()
+        self._setters = dict()
         with self.session.graph.as_default():
             for arg in args:
                 dummy = tf.Variable(arg.dtype.as_numpy_dtype())
                 self._observed[arg] = dummy
+                setter_var = tf.Variable(arg.dtype.as_numpy_dtype(), name=arg.name.split(':')[0])
+                setter = tf.assign(dummy, setter_var, validate_shape=False)
+                self._setters[dummy] = (setter, setter_var)
 
     def _rewrite_graph(self, transform):
         input_map = {k.name: v for k, v in transform.items()}
@@ -142,6 +150,11 @@ class Model(object):
         self.session.run(tf.initialize_variables(list(self._hidden.values())))
         # Sort the hidden variables so we can access them in a consistant order
         self._hidden_sorted = sorted(self._hidden.keys(), key=lambda v: v.name)
+        for h in self._hidden.values():
+            with self.session.graph.as_default():
+                var = tf.Variable(h.dtype.as_numpy_dtype(), name=h.name.split(':')[0] + '_placeholder')
+                setter = h.assign(var)
+            self._setters[h] = (setter, var)
 
         all_vars = self._hidden.copy()
         all_vars.update(self._observed)
@@ -179,10 +192,11 @@ class Model(object):
         if self._hidden is None:
             raise ModelError("Can't assign state to the model before `model.initialize()` has been called.")
 
-        ops = list()
-        for k, v in assign_dict.items():
-            ops.append(self._hidden[k].assign(v))
-        self.session.run(tf.group(*ops))
+        # Assign values without adding to the graph
+        setters = [ self._setters[self._hidden[k]][0] for k, v in assign_dict.items() ]
+        feed_dict = { self._setters[self._hidden[k]][1]: v for k, v in assign_dict.items() }
+        for s in setters:
+            self.session.run(s, feed_dict=feed_dict)
 
     @property
     def state(self):
@@ -192,16 +206,18 @@ class Model(object):
         return {k: v for k, v in zip(keys, values)}
 
     def _set_data(self, data):
-        if not self.initialized:
+        if self._hidden is None:
             raise ModelError("Can't use the model before it has been initialized with `model.initialize(...)`")
         # TODO(ibab) make sure that args all have the correct shape
         if len(data) != len(self._observed):
             raise ValueError("Different number of arguments passed to model method than declared in `model.observed()`")
 
         ops = []
+        feed_dict = { self._setters[k][1]: v for k, v in zip(self._observed.values(), data) }
         for obs, arg in zip(self._observed.values(), data):
-            ops.append(tf.assign(obs, obs.dtype.as_numpy_dtype(arg), validate_shape=False))
-        self.session.run(tf.group(*ops))
+            ops.append(self._setters[obs][0])
+        for s in ops:
+            self.session.run(s, feed_dict=feed_dict)
 
     def pdf(self, *args):
         self._set_data(args)
@@ -234,7 +250,9 @@ class Model(object):
 
         optimizer.session = self.session
 
-        return optimizer.minimize(variables, self._nll, gradient=gradient, bounds=bounds)
+        out = optimizer.minimize(variables, self._nll, gradient=gradient, bounds=bounds)
+        self.assign({ k: v for k, v in zip(sorted(self._hidden.keys(), key=lambda x: x.name), out.x) })
+        return out
 
 
 __all__ = [
