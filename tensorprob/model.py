@@ -1,6 +1,6 @@
 from collections import namedtuple
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('tensorprob')
 
 import tensorflow as tf
 
