@@ -100,8 +100,6 @@ class Model(object):
         # Modify the input dictionary to replace variables which have been
         # superseded with the use of combinators
         for k, v in self._silently_replace.items():
-            if v.name in input_map:
-                del input_map[v.name]
             input_map[k.name] = self._observed[v]
 
         with self.session.graph.as_default():

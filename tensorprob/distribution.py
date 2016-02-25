@@ -76,14 +76,7 @@ def Distribution(distribution_init):
             for l, u in bound:
                 conditions.append(tf.logical_and(tf.greater(var, l), tf.less(var, u)))
 
-            if len(conditions) == 1:
-                continue
-                Distribution.logp = tf.select(
-                    conditions,
-                    Distribution.logp,
-                    tf.fill(tf.shape(var), config.dtype(-np.inf))
-                )
-            else:
+            if len(conditions) > 0:
                 condition = conditions[0]
                 for a in conditions[1:]:
                     condition = tf.logical_or(condition, a)
