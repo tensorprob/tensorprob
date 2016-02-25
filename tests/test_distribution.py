@@ -18,11 +18,13 @@ def get_fake_distribution(logp=-42, integral=-42, dimension=1):
             return tf.constant(2, dtype=config.dtype)
 
     def FakeDistribution(name=None):
+        FakeDistribution.name = name
+
         if logp == -42:
             Distribution.logp = tf.constant(1, dtype=config.dtype)
+        else:
+            Distribution.logp = logp
 
-        FakeDistribution.name = name
-        Distribution.logp = logp
         Distribution.integral = integral
         variables = tuple(tf.placeholder(config.dtype) for i in range(dimension))
         return variables

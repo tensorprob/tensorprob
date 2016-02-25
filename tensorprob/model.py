@@ -2,11 +2,10 @@ from collections import namedtuple
 import logging
 logger = logging.getLogger('tensorprob')
 
-import numpy as np
 import tensorflow as tf
 
-from . import utilities
 from . import config
+from .utilities import classproperty, generate_name, is_finite
 
 
 # Used to specify valid ranges for variables
@@ -48,9 +47,9 @@ class Model(object):
 
         # Whether `model.initialize()` has been called
         self.initialized = False
-        self.name = name or utilities.generate_name(self.__class__)
+        self.name = name or generate_name(self.__class__)
 
-    @utilities.classproperty
+    @classproperty
     def current_model(self):
         if Model._current_model is None:
             raise ModelError("This can only be used inside a model environment")
@@ -163,9 +162,6 @@ class Model(object):
         all_vars.update(self._observed)
 
         # Get the nomalised list of log probabilites
-        def is_finite(obj):
-            return isinstance(obj, tf.Tensor) or np.isfinite(obj)
-
         logps = []
         with self._model_graph.as_default():
             for var in self._observed:

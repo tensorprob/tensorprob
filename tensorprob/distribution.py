@@ -3,6 +3,7 @@ from collections import Iterable
 import numpy as np
 import tensorflow as tf
 
+from . import config
 from . import utilities
 from .model import Description, Model, ModelError, Region
 
@@ -65,6 +66,32 @@ def Distribution(distribution_init):
                 bounds = [_parse_bounds(lower, upper, bounds)]*len(variables)
         except Exception:
             raise ValueError("Failed to parse 'bounds'")
+
+        # Force the logp to zero where the distribution is invalid
+        for var, bound in zip(variables, bounds):
+            if not (utilities.is_finite(bound[0].lower) and utilities.is_finite(bound[-1].upper)):
+                continue
+
+            conditions = []
+            for l, u in bound:
+                conditions.append(tf.logical_and(tf.greater(var, l), tf.less(var, u)))
+
+            if len(conditions) == 1:
+                continue
+                Distribution.logp = tf.select(
+                    conditions,
+                    Distribution.logp,
+                    tf.fill(tf.shape(var), config.dtype(-np.inf))
+                )
+            else:
+                condition = conditions[0]
+                for a in conditions[1:]:
+                    condition = tf.logical_or(condition, a)
+                Distribution.logp = tf.select(
+                    condition,
+                    Distribution.logp,
+                    tf.fill(tf.shape(var), config.dtype(-np.inf))
+                )
 
         # Add the new variables to the model description
         for variable, bound in zip(variables, bounds):
