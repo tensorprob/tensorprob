@@ -26,6 +26,29 @@ def test_distribution_creation_global_graph():
     after = tf.get_default_graph().as_graph_def()
     assert before == after
 
+def test_internal_graph_no_growth():
+    # Calling assign or fit doesn't grow the execution graph
+    with tp.Model() as model:
+        mu = tp.Parameter()
+        sigma = tp.Parameter(lower=0)
+        X = tp.Normal(mu, sigma)
+
+    model.observed(X)
+    model.initialize({
+        mu: 1,
+        sigma: 1,
+    })
+
+    before = model.session.graph_def
+    model.assign({
+        mu: 0,
+        sigma: 2,
+    })
+    model.fit([1,2,3])
+    after = model.session.graph_def
+
+    assert before == after
+
 
 @raises(tp.model.ModelError)
 def test_distribution_creation_outside_with():
