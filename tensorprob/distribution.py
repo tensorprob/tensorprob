@@ -69,22 +69,23 @@ def Distribution(distribution_init):
 
         # Force the logp to zero where the distribution is invalid
         for var, bound in zip(variables, bounds):
-            if not (utilities.is_finite(bound[0].lower) and utilities.is_finite(bound[-1].upper)):
+            # numpy can't check Tensor objects so check the class type first
+            if not isinstance(bound[0].lower, tf.Tensor) and np.isneginf(bound[0].lower) \
+                    and not isinstance(bound[0].upper, tf.Tensor) and np.isposinf(bound[0].upper):
                 continue
 
-            conditions = []
-            for l, u in bound:
-                conditions.append(tf.logical_and(tf.greater(var, l), tf.less(var, u)))
+            # Force logp to negative infinity when outside the allowed bounds
+            conditions = [tf.logical_and(tf.greater(var, l), tf.less(var, u)) for l, u in bound]
 
-            if len(conditions) > 0:
-                condition = conditions[0]
-                for a in conditions[1:]:
-                    condition = tf.logical_or(condition, a)
-                Distribution.logp = tf.select(
-                    condition,
-                    Distribution.logp,
-                    tf.fill(tf.shape(var), config.dtype(-np.inf))
-                )
+            is_inside_bounds = conditions[0]
+            for condition in conditions[1:]:
+                is_inside_bounds = tf.logical_or(is_inside_bounds, condition)
+
+            Distribution.logp = tf.select(
+                is_inside_bounds,
+                Distribution.logp,
+                tf.fill(tf.shape(var), config.dtype(-np.inf))
+            )
 
         # Add the new variables to the model description
         for variable, bound in zip(variables, bounds):

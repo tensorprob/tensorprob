@@ -29,7 +29,6 @@ def Mix2(f, A, B, name=None):
         a_integrals = tf.add_n(a_integrals) if a_integrals else tf.constant(1, config.dtype)
 
         b_integrals = []
-        # if is_finite(bounds[0].lower) and is_finite(bounds[0].upper)
         for b_lower, b_upper in b_bounds:
             # Ignore this region if it's outside the current limits
             if b_upper < lower or upper < b_lower:
