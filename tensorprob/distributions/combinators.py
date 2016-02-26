@@ -1,9 +1,10 @@
+from itertools import product
+
 import tensorflow as tf
 
 from .. import config
 from ..distribution import Distribution
 from ..model import Model, Region
-from ..utilities import is_finite
 
 
 @Distribution
@@ -14,31 +15,32 @@ def Mix2(f, A, B, name=None):
     a_logp, a_integral, a_bounds = Model._current_model._description[A]
     b_logp, b_integral, b_bounds = Model._current_model._description[B]
 
-    Distribution.logp = tf.log(f*tf.exp(a_logp) + (1-f)*tf.exp(b_logp))
+    def _integral(mix_bounds, sub_bounds, sub_integral):
+        # Calculate the normalised logp
+        integrals = []
+        # if is_finite(bounds[0].lower) and is_finite(bounds[0].upper)
+        for (mix_lower, mix_upper), (sub_lower, sub_upper) in product(mix_bounds, sub_bounds):
+            # Ignore this region if it's outside the current limits
+            if sub_upper < mix_lower or mix_upper < sub_lower:
+                continue
+            # Else keep the region, tightening the edges as reqired
+            integrals.append(sub_integral(max(sub_lower, mix_lower), min(sub_upper, mix_upper)))
+        return tf.add_n(integrals) if integrals else tf.constant(1, config.dtype)
+
+    bounds = Distribution.bounds(1)[0]
+    a_normalisation_1 = _integral(bounds, a_bounds, a_integral)
+    b_normalisation_1 = _integral(bounds, b_bounds, b_integral)
+
+    Distribution.logp = tf.log(
+        f*tf.exp(a_logp)/a_normalisation_1 +
+        (1-f)*tf.exp(b_logp)/b_normalisation_1
+    )
 
     def integral(lower, upper):
-        a_integrals = []
-        # if is_finite(bounds[0].lower) and is_finite(bounds[0].upper)
-        for a_lower, a_upper in a_bounds:
-            # Ignore this region if it's outside the current limits
-            if a_upper < lower or upper < a_lower:
-                continue
-            # Else keep the region, tightening the edges as reqired
-            a_integrals.append(a_integral(max(a_lower, lower), min(a_upper, upper)))
+        a_normalisation_2 = _integral([Region(lower, upper)], a_bounds, a_integral)
+        b_normalisation_2 = _integral([Region(lower, upper)], b_bounds, b_integral)
 
-        a_integrals = tf.add_n(a_integrals) if a_integrals else tf.constant(1, config.dtype)
-
-        b_integrals = []
-        for b_lower, b_upper in b_bounds:
-            # Ignore this region if it's outside the current limits
-            if b_upper < lower or upper < b_lower:
-                continue
-            # Else keep the region, tightening the edges as reqired
-            b_integrals.append(b_integral(max(b_lower, lower), min(b_upper, upper)))
-
-        b_integrals = tf.add_n(b_integrals) if b_integrals else tf.constant(1, config.dtype)
-
-        return f*a_integrals + (1-f)*b_integrals
+        return f/a_normalisation_1*a_normalisation_2 + (1-f)/b_normalisation_1*b_normalisation_2
 
     Distribution.integral = integral
 

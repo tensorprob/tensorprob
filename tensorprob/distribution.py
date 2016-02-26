@@ -12,16 +12,28 @@ class DistributionError(Exception):
     pass
 
 
-def _parse_bounds(lower, upper, bounds):
-    if not bounds:
-        lower = -np.inf if lower is None else lower
-        upper = np.inf if upper is None else upper
-        return [Region(lower, upper)]
+def _parse_bounds(num_dimensions, lower, upper, bounds):
+    def _parse_bounds_1D(lower, upper, bounds):
+        if not bounds:
+            lower = -np.inf if lower is None else lower
+            upper = np.inf if upper is None else upper
+            return [Region(lower, upper)]
 
-    bounds = [Region(*b) for b in bounds]
-    if None in utilities.flatten(bounds):
-        raise ValueError
-    return bounds
+        bounds = [Region(*b) for b in bounds]
+        if None in utilities.flatten(bounds):
+            raise ValueError
+        return bounds
+
+    try:
+        if num_dimensions == len(bounds) and isinstance(bounds[0][0], Iterable):
+            bounds = [_parse_bounds_1D(lower, upper, b) for b in bounds]
+        else:
+            # Set the same bounds for all variables
+            bounds = [_parse_bounds_1D(lower, upper, bounds)]*num_dimensions
+    except Exception:
+        raise ValueError("Failed to parse 'bounds'")
+    else:
+        return bounds
 
 
 def Distribution(distribution_init):
@@ -44,6 +56,7 @@ def Distribution(distribution_init):
 
         Distribution.logp = None
         Distribution.integral = None
+        Distribution.bounds = lambda ndim: _parse_bounds(ndim, lower, upper, bounds)
         variables = distribution_init(*args, name=name)
 
         # One dimensional distributions return a value, convert it to a tuple
@@ -58,14 +71,7 @@ def Distribution(distribution_init):
             raise NotImplementedError('Numeric integrals are not yet supported')
 
         # Parse the bounds to be a list of lists of Regions
-        try:
-            if len(variables) == len(bounds) and isinstance(bounds[0][0], Iterable):
-                bounds = [_parse_bounds(lower, upper, b) for b in bounds]
-            else:
-                # Set the same bounds for all variables
-                bounds = [_parse_bounds(lower, upper, bounds)]*len(variables)
-        except Exception:
-            raise ValueError("Failed to parse 'bounds'")
+        bounds = Distribution.bounds(len(variables))
 
         # Force the logp to zero where the distribution is invalid
         for var, bound in zip(variables, bounds):
