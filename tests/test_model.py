@@ -21,10 +21,11 @@ def test_scalar_creation_outside_with():
 def test_distribution_creation_global_graph():
     # Distribution creation doesn't modify the global graph
     before = tf.get_default_graph().as_graph_def()
-    with tp.Model() as model:
-        mu = tp.Parameter()
+    with tp.Model():
+        tp.Parameter()
     after = tf.get_default_graph().as_graph_def()
     assert before == after
+
 
 def test_internal_graph_no_growth():
     # Calling assign or fit doesn't grow the execution graph
@@ -44,7 +45,7 @@ def test_internal_graph_no_growth():
         mu: 0,
         sigma: 2,
     })
-    model.fit([1,2,3])
+    model.fit([1, 2, 3])
     after = model.session.graph_def
 
     assert before == after
@@ -171,6 +172,7 @@ def test_observed_in_model():
         X = tp.Normal(mu, sigma)
         model.observed(X)
 
+
 def test_variable_independent():
     with tp.Model() as model:
         a = tp.Parameter()
@@ -179,5 +181,4 @@ def test_variable_independent():
     model.initialize({
         a: 1,
     })
-    model.fit([1,2,3])
-
+    model.fit([1, 2, 3])

@@ -1,29 +1,39 @@
-from collections import Iterable, namedtuple
+from collections import Iterable
 
 import numpy as np
 import tensorflow as tf
 
+from . import config
 from . import utilities
-from .model import Description, Model, ModelError
-
-
-Region = namedtuple('Region', ['lower', 'upper'])
+from .model import Description, Model, ModelError, Region
 
 
 class DistributionError(Exception):
     pass
 
 
-def _parse_bounds(lower, upper, bounds):
-    if not bounds:
-        lower = -np.inf if lower is None else lower
-        upper = np.inf if upper is None else upper
-        return [Region(lower, upper)]
+def _parse_bounds(num_dimensions, lower, upper, bounds):
+    def _parse_bounds_1D(lower, upper, bounds):
+        if not bounds:
+            lower = -np.inf if lower is None else lower
+            upper = np.inf if upper is None else upper
+            return [Region(lower, upper)]
 
-    bounds = [Region(*b) for b in bounds]
-    if None in utilities.flatten(bounds):
-        raise ValueError
-    return bounds
+        bounds = [Region(*b) for b in bounds]
+        if None in utilities.flatten(bounds):
+            raise ValueError
+        return bounds
+
+    try:
+        if num_dimensions == len(bounds) and isinstance(bounds[0][0], Iterable):
+            bounds = [_parse_bounds_1D(lower, upper, b) for b in bounds]
+        else:
+            # Set the same bounds for all variables
+            bounds = [_parse_bounds_1D(lower, upper, bounds)]*num_dimensions
+    except Exception:
+        raise ValueError("Failed to parse 'bounds'")
+    else:
+        return bounds
 
 
 def Distribution(distribution_init):
@@ -46,6 +56,7 @@ def Distribution(distribution_init):
 
         Distribution.logp = None
         Distribution.integral = None
+        Distribution.bounds = lambda ndim: _parse_bounds(ndim, lower, upper, bounds)
         variables = distribution_init(*args, name=name)
 
         # One dimensional distributions return a value, convert it to a tuple
@@ -59,21 +70,33 @@ def Distribution(distribution_init):
         if Distribution.integral is None:
             raise NotImplementedError('Numeric integrals are not yet supported')
 
-        # Normalise the distribution's logp
-        if lower is not None and upper is not None:
-            Distribution.logp = (
-                Distribution.logp - tf.log(Distribution.integral(lower, upper))
-            )
-
         # Parse the bounds to be a list of lists of Regions
-        try:
-            if len(variables) == len(bounds) and isinstance(bounds[0][0], Iterable):
-                bounds = [_parse_bounds(lower, upper, b) for b in bounds]
-            else:
-                # Set the same bounds for all variables
-                bounds = [_parse_bounds(lower, upper, bounds)]*len(variables)
-        except Exception:
-            raise ValueError("Failed to parse 'bounds'")
+        bounds = Distribution.bounds(len(variables))
+
+        # Force logp to negative infinity when outside the allowed bounds
+        for var, bound in zip(variables, bounds):
+            conditions = []
+            for l, u in bound:
+                lower_is_neg_inf = not isinstance(l, tf.Tensor) and np.isneginf(l)
+                lower_is_pos_inf = not isinstance(l, tf.Tensor) and np.isposinf(u)
+
+                if not lower_is_neg_inf and lower_is_pos_inf:
+                    conditions.append(tf.greater(var, l))
+                elif lower_is_neg_inf and not lower_is_pos_inf:
+                    conditions.append(tf.less(var, u))
+                elif not (lower_is_neg_inf or lower_is_pos_inf):
+                    conditions.append(tf.logical_and(tf.greater(var, l), tf.less(var, u)))
+
+            if len(conditions) > 0:
+                is_inside_bounds = conditions[0]
+                for condition in conditions[1:]:
+                    is_inside_bounds = tf.logical_or(is_inside_bounds, condition)
+
+                Distribution.logp = tf.select(
+                    is_inside_bounds,
+                    Distribution.logp,
+                    tf.fill(tf.shape(var), config.dtype(-np.inf))
+                )
 
         # Add the new variables to the model description
         for variable, bound in zip(variables, bounds):

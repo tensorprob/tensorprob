@@ -1,5 +1,7 @@
 import numpy as np
+import scipy.stats as st
 from nose.tools import raises
+from numpy.testing import assert_array_almost_equal
 
 from tensorprob import (
     config,
@@ -7,6 +9,8 @@ from tensorprob import (
     DistributionError,
     Model,
     ModelError,
+    Normal,
+    Parameter,
     Region,
 )
 import tensorflow as tf
@@ -18,11 +22,13 @@ def get_fake_distribution(logp=-42, integral=-42, dimension=1):
             return tf.constant(2, dtype=config.dtype)
 
     def FakeDistribution(name=None):
+        FakeDistribution.name = name
+
         if logp == -42:
             Distribution.logp = tf.constant(1, dtype=config.dtype)
+        else:
+            Distribution.logp = logp
 
-        FakeDistribution.name = name
-        Distribution.logp = logp
         Distribution.integral = integral
         variables = tuple(tf.placeholder(config.dtype) for i in range(dimension))
         return variables
@@ -92,6 +98,17 @@ def test_bounds_invalid_shape_2():
         ])
 
 
+@raises(ValueError)
+def test_bounds_contain_none():
+    FakeDistribution2D = get_fake_distribution(dimension=2)
+    with Model():
+        FakeDistribution2D(bounds=[
+            [1.1, 2.2, 3.3, 4.4],
+            [1.1, None, 3.3, 4.4],
+            [1.1, 2.2, 3.3, 4.4]
+        ])
+
+
 def test_bounds_1D():
     FakeDistribution = get_fake_distribution()
     with Model() as model:
@@ -145,3 +162,36 @@ def test_bounds_ND():
     assert model._description[F1].bounds == [Region(1.1, 2.1), Region(3.1, 4.1), Region(5.1, 6.1)]
     assert model._description[F2].bounds == [Region(1.2, 2.2), Region(3.2, 4.2), Region(5.2, 6.2)]
     assert model._description[F3].bounds == [Region(1.3, 2.3), Region(3.3, 4.3), Region(5.3, 6.3)]
+
+
+def test_integral():
+    bounds = [
+        (-1, -0.9), (-0.65, -0.5), (-0.4, -0.32),
+        (-0.31, -0.1), (0, 0.05), (0.2, np.inf)
+    ]
+
+    @np.vectorize
+    def allowed_point(x):
+        for l, u in bounds:
+            if l < x and x < u:
+                return 1
+        return 0
+
+    with Model() as model:
+        mu = Parameter()
+        sigma = Parameter(lower=0)
+        X = Normal(mu, sigma, bounds=bounds)
+
+    model.observed(X)
+    model.initialize({mu: -0.4, sigma: 2})
+
+    xs = np.linspace(-1, 1, 1001)
+
+    # Calculate the integral using scipy, zeroing points that are out of bounds
+    out1 = st.norm.pdf(xs, -0.4, 2) * allowed_point(xs)
+    integral = sum(st.norm.cdf(u, -0.4, 2) - st.norm.cdf(l, -0.4, 2) for l, u in bounds)
+    out1 /= integral
+
+    out2 = model.pdf(xs)
+
+    assert_array_almost_equal(out1, out2, 15)

@@ -2,12 +2,15 @@ from collections import namedtuple
 import logging
 logger = logging.getLogger('tensorprob')
 
+import numpy as np
 import tensorflow as tf
 
-from . import utilities
 from . import config
+from .utilities import classproperty, generate_name, is_finite
 
 
+# Used to specify valid ranges for variables
+Region = namedtuple('Region', ['lower', 'upper'])
 # Used to describe a variable's role in the model
 Description = namedtuple('Description', ['logp', 'integral', 'bounds'])
 
@@ -45,9 +48,9 @@ class Model(object):
 
         # Whether `model.initialize()` has been called
         self.initialized = False
-        self.name = name or utilities.generate_name(self.__class__)
+        self.name = name or generate_name(self.__class__)
 
-    @utilities.classproperty
+    @classproperty
     def current_model(self):
         if Model._current_model is None:
             raise ModelError("This can only be used inside a model environment")
@@ -66,6 +69,21 @@ class Model(object):
 
         self.graph_ctx.__exit__(e_type, e, tb)
         self.graph_ctx = None
+
+        # Normalise all log probabilities contained in _description
+        with self._model_graph.as_default():
+            for var, (logp, integral, bounds) in self._description.items():
+                def replace_inf(x):
+                    if not isinstance(x, tf.Tensor):
+                        if np.isposinf(x):
+                            return 1e250
+                        elif np.isneginf(x):
+                            return -1e250
+                    return x
+
+                logp -= tf.log(tf.add_n([integral(replace_inf(l), replace_inf(u)) for l, u in bounds]))
+
+                self._description[var] = Description(logp, integral, bounds)
 
         # We shouldn't be allowed to edit this one anymore
         self._model_graph.finalize()
@@ -98,8 +116,6 @@ class Model(object):
         # Modify the input dictionary to replace variables which have been
         # superseded with the use of combinators
         for k, v in self._silently_replace.items():
-            if v.name in input_map:
-                del input_map[v.name]
             input_map[k.name] = self._observed[v]
 
         with self.session.graph.as_default():
@@ -162,9 +178,7 @@ class Model(object):
         self._rewrite_graph(all_vars)
 
         with self.session.graph.as_default():
-            logps = []
-            for var in self._observed:
-                logps.append(self._get_rewritten(self._description[var].logp))
+            logps = [self._get_rewritten(self._description[v].logp) for v in self._observed]
 
             self._pdf = tf.exp(tf.add_n(logps))
             self._nll = -tf.add_n([tf.reduce_sum(logp) for logp in logps])
@@ -213,7 +227,7 @@ class Model(object):
             raise ValueError("Different number of arguments passed to model method than declared in `model.observed()`")
 
         ops = []
-        feed_dict = { self._setters[k][1]: v for k, v in zip(self._observed.values(), data) }
+        feed_dict = {self._setters[k][1]: v for k, v in zip(self._observed.values(), data)}
         for obs, arg in zip(self._observed.values(), data):
             ops.append(self._setters[obs][0])
         for s in ops:
@@ -251,7 +265,7 @@ class Model(object):
         optimizer.session = self.session
 
         out = optimizer.minimize(variables, self._nll, gradient=gradient, bounds=bounds)
-        self.assign({ k: v for k, v in zip(sorted(self._hidden.keys(), key=lambda x: x.name), out.x) })
+        self.assign({k: v for k, v in zip(sorted(self._hidden.keys(), key=lambda x: x.name), out.x)})
         return out
 
 

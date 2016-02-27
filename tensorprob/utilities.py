@@ -1,5 +1,8 @@
 from collections import defaultdict, Iterable
+import itertools
 
+import numpy as np
+import tensorflow as tf
 from six.moves import zip_longest
 
 
@@ -45,3 +48,14 @@ def flatten(l):
                 yield sub
         else:
             yield el
+
+
+def is_finite(obj):
+    return isinstance(obj, tf.Tensor) or np.isfinite(obj)
+
+
+def pairwise(iterable):
+    "s -> (s0,s1), (s1,s2), (s2, s3), ..."
+    a, b = itertools.tee(iterable)
+    next(b, None)
+    return zip(a, b)

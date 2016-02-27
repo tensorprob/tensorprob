@@ -14,18 +14,18 @@ def test_init():
         X7 = tp.Uniform(lower=X1, upper=X2)
 
 
-#@raises(ValueError)
-#def test_uniform_fail_lower():
-#    with tp.Model():
-#        X1 = tp.Uniform()
-#        X2 = tp.Uniform(lower=X1)
-#
-#
-#@raises(ValueError)
-#def test_uniform_fail_upper():
-#    with tp.Model() as model:
-#        X1 = tp.Uniform()
-#        X2 = tp.Uniform(upper=X1)
+# @raises(ValueError)
+# def test_uniform_fail_lower():
+#     with tp.Model():
+#         X1 = tp.Uniform()
+#         X2 = tp.Uniform(lower=X1)
+
+
+# @raises(ValueError)
+# def test_uniform_fail_upper():
+#     with tp.Model() as model:
+#         X1 = tp.Uniform()
+#         X2 = tp.Uniform(upper=X1)
 
 
 def test_pdf():
@@ -34,7 +34,7 @@ def test_pdf():
         X = tp.Uniform(lower=dummy, upper=1)
 
     m.observed(X)
-    m.initialize({ dummy: -2 })
+    m.initialize({dummy: -2})
 
     xs = np.linspace(-1, 1, 1)
     out1 = st.uniform.pdf(xs, -2, 3)
