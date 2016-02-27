@@ -73,6 +73,7 @@ class Model(object):
         # Normalise all log probabilities contained in _description
         with self._model_graph.as_default():
             for var, (logp, integral, bounds) in self._description.items():
+                # TODO(chrisburr) Remove
                 def replace_inf(x):
                     if not isinstance(x, tf.Tensor):
                         if np.isposinf(x):
