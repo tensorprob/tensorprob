@@ -26,6 +26,7 @@ def test_distribution_creation_global_graph():
     after = tf.get_default_graph().as_graph_def()
     assert before == after
 
+
 def test_internal_graph_no_growth():
     # Calling assign or fit doesn't grow the execution graph
     with tp.Model() as model:
@@ -44,7 +45,7 @@ def test_internal_graph_no_growth():
         mu: 0,
         sigma: 2,
     })
-    model.fit([1,2,3])
+    model.fit([1, 2, 3])
     after = model.session.graph_def
 
     assert before == after

@@ -25,11 +25,11 @@ def test_mix2_fit():
     # Generate some data to fit
     np.random.seed(42)
 
-    exp_data = np.random.exponential(10, 2000000)
+    exp_data = np.random.exponential(10, 200000)
     exp_data = exp_data[(exp_data < 8) | (10 < exp_data)]
 
     # Include the data blinded by the Mix2 bounds as we use the len(norm1_data)
-    norm1_data = np.random.normal(19, 2, 1000000)
+    norm1_data = np.random.normal(19, 2, 100000)
     norm1_data = norm1_data[
         ((6 < norm1_data) & (norm1_data < 17)) |
         ((18 < norm1_data) & (norm1_data < 21)) |
@@ -41,7 +41,7 @@ def test_mix2_fit():
 
     model.fit(data)
 
-    assert model.state[mu] - 19 < 5e-2
-    assert model.state[sigma] - 2 < 5e-2
+    assert model.state[mu] - 19 < 5e-3
+    assert model.state[sigma] - 2 < 5e-3
     assert model.state[a] - 0.1 < 5e-4
-    assert model.state[f] - (len(norm1_data)/len(data)) < 5e-4
+    assert model.state[f] - (len(norm1_data)/len(data)) < 5e-5

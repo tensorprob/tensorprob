@@ -76,9 +76,10 @@ def Distribution(distribution_init):
         # Force the logp to zero where the distribution is invalid
         for var, bound in zip(variables, bounds):
             # numpy can't check Tensor objects so check the class type first
-            if not isinstance(bound[0].lower, tf.Tensor) and np.isneginf(bound[0].lower) \
-                    and not isinstance(bound[0].upper, tf.Tensor) and np.isposinf(bound[0].upper):
-                continue
+            # TODO(chrisburr) Remove this comment?
+            # if not isinstance(bound[0].lower, tf.Tensor) and np.isneginf(bound[0].lower) \
+            #         and not isinstance(bound[0].upper, tf.Tensor) and np.isposinf(bound[0].upper):
+            #     continue
 
             # Force logp to negative infinity when outside the allowed bounds
             conditions = [tf.logical_and(tf.greater(var, l), tf.less(var, u)) for l, u in bound]

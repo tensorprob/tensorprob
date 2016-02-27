@@ -2,6 +2,7 @@ from collections import namedtuple
 import logging
 logger = logging.getLogger('tensorprob')
 
+import numpy as np
 import tensorflow as tf
 
 from . import config
@@ -68,6 +69,23 @@ class Model(object):
 
         self.graph_ctx.__exit__(e_type, e, tb)
         self.graph_ctx = None
+
+        # Normalise all log probabilities contained in _description
+        with self._model_graph.as_default():
+            for var, (logp, integral, bounds) in self._description.items():
+                def replace_inf(x):
+                    if isinstance(x, tf.Tensor):
+                        return x
+                    elif np.isposinf(x):
+                        return 1e250
+                    elif np.isneginf(x):
+                        return -1e250
+                    else:
+                        return x
+
+                logp -= tf.log(tf.add_n([integral(replace_inf(l), replace_inf(u)) for l, u in bounds]))
+
+                self._description[var] = Description(logp, integral, bounds)
 
         # We shouldn't be allowed to edit this one anymore
         self._model_graph.finalize()
@@ -159,22 +177,10 @@ class Model(object):
         all_vars = self._hidden.copy()
         all_vars.update(self._observed)
 
-        # Get the nomalised list of log probabilites
-        logps = []
-        with self._model_graph.as_default():
-            for var in self._observed:
-                logp, integral, bounds = self._description[var]
-
-                # Normalise as required
-                if is_finite(bounds[0].lower) and is_finite(bounds[0].upper):
-                    logp -= tf.log(tf.add_n([integral(l, u) for l, u in bounds]))
-
-                logps.append(logp)
-
         self._rewrite_graph(all_vars)
 
         with self.session.graph.as_default():
-            logps = [self._get_rewritten(logp) for logp in logps]
+            logps = [self._get_rewritten(self._description[v].logp) for v in self._observed]
 
             self._pdf = tf.exp(tf.add_n(logps))
             self._nll = -tf.add_n([tf.reduce_sum(logp) for logp in logps])
@@ -223,7 +229,7 @@ class Model(object):
             raise ValueError("Different number of arguments passed to model method than declared in `model.observed()`")
 
         ops = []
-        feed_dict = { self._setters[k][1]: v for k, v in zip(self._observed.values(), data) }
+        feed_dict = {self._setters[k][1]: v for k, v in zip(self._observed.values(), data)}
         for obs, arg in zip(self._observed.values(), data):
             ops.append(self._setters[obs][0])
         for s in ops:
@@ -261,7 +267,7 @@ class Model(object):
         optimizer.session = self.session
 
         out = optimizer.minimize(variables, self._nll, gradient=gradient, bounds=bounds)
-        self.assign({ k: v for k, v in zip(sorted(self._hidden.keys(), key=lambda x: x.name), out.x) })
+        self.assign({k: v for k, v in zip(sorted(self._hidden.keys(), key=lambda x: x.name), out.x)})
         return out
 
 
