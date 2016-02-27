@@ -74,14 +74,12 @@ class Model(object):
         with self._model_graph.as_default():
             for var, (logp, integral, bounds) in self._description.items():
                 def replace_inf(x):
-                    if isinstance(x, tf.Tensor):
-                        return x
-                    elif np.isposinf(x):
-                        return 1e250
-                    elif np.isneginf(x):
-                        return -1e250
-                    else:
-                        return x
+                    if not isinstance(x, tf.Tensor):
+                        if np.isposinf(x):
+                            return 1e250
+                        elif np.isneginf(x):
+                            return -1e250
+                    return x
 
                 logp -= tf.log(tf.add_n([integral(replace_inf(l), replace_inf(u)) for l, u in bounds]))
 

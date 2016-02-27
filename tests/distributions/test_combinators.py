@@ -1,3 +1,5 @@
+from __future__ import division
+
 import numpy as np
 
 from tensorprob import Model, Parameter, Normal, Exponential, Mix2

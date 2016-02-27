@@ -73,26 +73,30 @@ def Distribution(distribution_init):
         # Parse the bounds to be a list of lists of Regions
         bounds = Distribution.bounds(len(variables))
 
-        # Force the logp to zero where the distribution is invalid
+        # Force logp to negative infinity when outside the allowed bounds
         for var, bound in zip(variables, bounds):
-            # numpy can't check Tensor objects so check the class type first
-            # TODO(chrisburr) Remove this comment?
-            # if not isinstance(bound[0].lower, tf.Tensor) and np.isneginf(bound[0].lower) \
-            #         and not isinstance(bound[0].upper, tf.Tensor) and np.isposinf(bound[0].upper):
-            #     continue
+            conditions = []
+            for l, u in bound:
+                lower_is_neg_inf = not isinstance(l, tf.Tensor) and np.isneginf(l)
+                lower_is_pos_inf = not isinstance(l, tf.Tensor) and np.isposinf(u)
 
-            # Force logp to negative infinity when outside the allowed bounds
-            conditions = [tf.logical_and(tf.greater(var, l), tf.less(var, u)) for l, u in bound]
+                if not lower_is_neg_inf and lower_is_pos_inf:
+                    conditions.append(tf.greater(var, l))
+                elif lower_is_neg_inf and not lower_is_pos_inf:
+                    conditions.append(tf.less(var, u))
+                elif not (lower_is_neg_inf or lower_is_pos_inf):
+                    conditions.append(tf.logical_and(tf.greater(var, l), tf.less(var, u)))
 
-            is_inside_bounds = conditions[0]
-            for condition in conditions[1:]:
-                is_inside_bounds = tf.logical_or(is_inside_bounds, condition)
+            if len(conditions) > 0:
+                is_inside_bounds = conditions[0]
+                for condition in conditions[1:]:
+                    is_inside_bounds = tf.logical_or(is_inside_bounds, condition)
 
-            Distribution.logp = tf.select(
-                is_inside_bounds,
-                Distribution.logp,
-                tf.fill(tf.shape(var), config.dtype(-np.inf))
-            )
+                Distribution.logp = tf.select(
+                    is_inside_bounds,
+                    Distribution.logp,
+                    tf.fill(tf.shape(var), config.dtype(-np.inf))
+                )
 
         # Add the new variables to the model description
         for variable, bound in zip(variables, bounds):

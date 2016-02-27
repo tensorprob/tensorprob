@@ -18,7 +18,6 @@ def Mix2(f, A, B, name=None):
     def _integral(mix_bounds, sub_bounds, sub_integral):
         # Calculate the normalised logp
         integrals = []
-        # if is_finite(bounds[0].lower) and is_finite(bounds[0].upper)
         for (mix_lower, mix_upper), (sub_lower, sub_upper) in product(mix_bounds, sub_bounds):
             # Ignore this region if it's outside the current limits
             if sub_upper < mix_lower or mix_upper < sub_lower:
@@ -54,7 +53,6 @@ def Mix2(f, A, B, name=None):
             for key, value in list(Model._current_model._silently_replace.items()):
                 if value == dist:
                     Model._current_model._silently_replace[value] = X
-                    del Model._current_model._silently_replace[key]  # TODO(chrisburr) Remove
                     Model._current_model._silently_replace[key] = X
                     if dist in Model._current_model._description:
                         del Model._current_model._description[dist]
