@@ -73,17 +73,7 @@ class Model(object):
         # Normalise all log probabilities contained in _description
         with self._model_graph.as_default():
             for var, (logp, integral, bounds) in self._description.items():
-                # TODO(chrisburr) Remove
-                def replace_inf(x):
-                    if not isinstance(x, tf.Tensor):
-                        if np.isposinf(x):
-                            return 1e250
-                        elif np.isneginf(x):
-                            return -1e250
-                    return x
-
-                logp -= tf.log(tf.add_n([integral(replace_inf(l), replace_inf(u)) for l, u in bounds]))
-
+                logp -= tf.log(tf.add_n([integral(l, u) for l, u in bounds]))
                 self._description[var] = Description(logp, integral, bounds)
 
         # We shouldn't be allowed to edit this one anymore

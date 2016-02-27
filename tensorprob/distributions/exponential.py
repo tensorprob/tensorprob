@@ -11,7 +11,19 @@ def Exponential(lambda_, name=None):
     Distribution.logp = tf.log(lambda_) - lambda_*X
 
     def integral(lower, upper):
-        return tf.exp(-lambda_*lower) - tf.exp(-lambda_*upper)
+        upper_integrand = tf.cond(
+            tf.is_inf(tf.cast(upper, config.dtype)),
+            lambda: tf.constant(1, dtype=config.dtype),
+            lambda: tf.exp(-lambda_*upper)
+        )
+
+        lower_integrand = tf.cond(
+            tf.is_inf(tf.cast(lower, config.dtype)),
+            lambda: tf.constant(0, dtype=config.dtype),
+            lambda: tf.exp(-lambda_*lower)
+        )
+
+        return lower_integrand - upper_integrand
 
     Distribution.integral = integral
 

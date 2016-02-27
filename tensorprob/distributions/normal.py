@@ -24,7 +24,19 @@ def Normal(mu, sigma, name=None):
     Distribution.logp = _normal_logp(X, mu, sigma)
 
     def integral(lower, upper):
-        return _normal_cdf(upper, mu, sigma) - _normal_cdf(lower, mu, sigma)
+        upper_integrand = tf.cond(
+            tf.is_inf(tf.cast(upper, config.dtype)),
+            lambda: tf.constant(1, dtype=config.dtype),
+            lambda: _normal_cdf(upper, mu, sigma)
+        )
+
+        lower_integrand = tf.cond(
+            tf.is_inf(tf.cast(lower, config.dtype)),
+            lambda: tf.constant(0, dtype=config.dtype),
+            lambda: _normal_cdf(lower, mu, sigma)
+        )
+
+        return upper_integrand - lower_integrand
 
     Distribution.integral = integral
 

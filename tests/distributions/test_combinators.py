@@ -41,8 +41,9 @@ def test_mix2_fit():
     data = np.concatenate([exp_data, norm1_data])
     data = data[((6 < data) & (data < 17)) | ((18 < data) & (data < 36))]
 
-    model.fit(data)
+    result = model.fit(data)
 
+    assert result.success
     assert model.state[mu] - 19 < 5e-3
     assert model.state[sigma] - 2 < 5e-3
     assert model.state[a] - 0.1 < 5e-4
