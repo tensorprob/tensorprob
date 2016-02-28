@@ -59,26 +59,9 @@ def Distribution(distribution_init):
         Distribution.bounds = lambda ndim: _parse_bounds(ndim, lower, upper, bounds)
         variables = distribution_init(*args, name=name)
 
-<<<<<<< 37ca5d3793ad4ccbd95f204831c49fa607bd2f49
         # One dimensional distributions return a value, convert it to a tuple
         if not isinstance(variables, tuple):
             variables = (variables,)
-=======
-        if lower is not None:
-            lower_ = tf.cast(lower, config.dtype)
-            Distribution.logp = tf.select(tf.less(variables, lower_),
-                    tf.fill(tf.shape(variables), tf.constant(-np.inf, dtype=config.dtype)),
-                    Distribution.logp)
-
-        if upper is not None:
-            upper_ = tf.cast(upper, config.dtype)
-            Distribution.logp = tf.select(tf.greater(variables, upper_),
-                    tf.fill(tf.shape(variables), tf.constant(-np.inf, dtype=config.dtype)),
-                    Distribution.logp)
-
-        if lower is not None and upper is not None:
-            Distribution.logp = Distribution.logp - tf.log(Distribution.integral(lower, upper))
->>>>>>> Add support for MCMC
 
         # Ensure the distribution has set the required properties
         if Distribution.logp is None:

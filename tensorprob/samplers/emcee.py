@@ -28,22 +28,18 @@ class EmceeSampler(BaseSampler):
             if not isinstance(v, tf.Variable):
                 raise ValueError("Parameter {} is not a tensorflow variable".format(v))
 
-        self.fev = 0
         def objective(xs):
             feed_dict = { k: v for k, v in zip(variables, xs) }
             out = self.session.run(cost, feed_dict=feed_dict)
-            if self.fev % 1000 == 0:
-                print(self.fev)
-            self.fev += 1
-            print(out)
             if np.isnan(out):
                 return np.inf
             return -out
 
-        all_inits = self.emcee.utils.sample_ball(inits, [1e-2] * len(inits), self.walkers)
+        all_inits = self.emcee.utils.sample_ball(inits, [1e-1] * len(inits), self.walkers)
         sampler = self.emcee.EnsembleSampler(self.walkers, len(variables), objective)
 
         samples = 1 if samples is None else samples
+        sampler.random_state = np.random.mtrand.RandomState(np.random.randint(1)).get_state()
         pos, lnprob, rstate = sampler.run_mcmc(all_inits, samples)
-        return sampler.flatchain
+        return sampler.chain
 
