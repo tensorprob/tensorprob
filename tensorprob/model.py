@@ -175,8 +175,7 @@ class Model(object):
             hidden_logps = [self._get_rewritten(self._description[v].logp) for v in self._hidden]
 
             self._pdf = tf.exp(tf.add_n(
-                observed_logps +
-                [tf.fill(tf.shape(observed_logps[0]), logp) for logp in hidden_logps]
+                observed_logps
             ))
             self._nll = -tf.add_n(
                 [tf.reduce_sum(logp) for logp in observed_logps] +
