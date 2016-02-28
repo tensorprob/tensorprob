@@ -116,8 +116,9 @@ class Model(object):
                         input_map=input_map,
                         name='added',
                 )
-            except:
-                # Handle the case where there is no likelihood
+            except ValueError:
+                # Ignore errors that ocour when the input_map tries to
+                # rewrite a variable that isn't present in the graph
                 pass
 
     def _get_rewritten(self, tensor):
