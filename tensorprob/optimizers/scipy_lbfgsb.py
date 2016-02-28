@@ -54,6 +54,10 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
             for current in bounds:
                 lower, upper = current
 
+                # Variable limits should be ignored
+                if isinstance(lower, tf.Tensor) or isinstance(upper, tf.Tensor):
+                    raise NotImplementedError("ScipyLBFGSBOptimizer currently doesn't support variable bounds")
+
                 # Translate inf to None, which is what this minimizer understands
                 if lower is not None and np.isinf(lower):
                     lower = None

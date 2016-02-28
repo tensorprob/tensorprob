@@ -10,7 +10,17 @@ def Uniform(name=None):
 
     Distribution.logp = tf.fill(tf.shape(X), config.dtype(0))
 
-    Distribution.integral = lambda lower, upper: tf.cast(upper, config.dtype) - tf.cast(lower, config.dtype)
+    def integral(lower, upper):
+        return tf.cond(
+            tf.logical_or(
+                tf.is_inf(tf.cast(lower, config.dtype)),
+                tf.is_inf(tf.cast(upper, config.dtype))
+            ),
+            lambda: tf.constant(1, dtype=config.dtype),
+            lambda: tf.cast(upper, config.dtype) - tf.cast(lower, config.dtype),
+        )
+
+    Distribution.integral = integral
 
     return X
 
@@ -21,6 +31,16 @@ def UniformInt(name=None):
 
     Distribution.logp = tf.fill(tf.shape(X), config.dtype(0))
 
-    Distribution.integral = lambda lower, upper: tf.cast(tf.floor(upper) - tf.ceil(lower), config.dtype)
+    def integral(lower, upper):
+        return tf.cond(
+            tf.logical_or(
+                tf.is_inf(tf.cast(tf.ceil(lower), config.dtype)),
+                tf.is_inf(tf.cast(tf.floor(upper), config.dtype))
+            ),
+            lambda: tf.constant(1, dtype=config.dtype),
+            lambda: tf.cast(upper, config.dtype) - tf.cast(lower, config.dtype),
+        )
+
+    Distribution.integral = integral
 
     return X

@@ -20,7 +20,7 @@ def Mix2(f, A, B, name=None):
         integrals = []
         for (mix_lower, mix_upper), (sub_lower, sub_upper) in product(mix_bounds, sub_bounds):
             # Ignore this region if it's outside the current limits
-            if sub_upper < mix_lower or mix_upper < sub_lower:
+            if sub_upper <= mix_lower or mix_upper <= sub_lower:
                 continue
             # Else keep the region, tightening the edges as reqired
             integrals.append(sub_integral(max(sub_lower, mix_lower), min(sub_upper, mix_upper)))

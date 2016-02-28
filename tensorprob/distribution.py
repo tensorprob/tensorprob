@@ -78,13 +78,13 @@ def Distribution(distribution_init):
             conditions = []
             for l, u in bound:
                 lower_is_neg_inf = not isinstance(l, tf.Tensor) and np.isneginf(l)
-                lower_is_pos_inf = not isinstance(l, tf.Tensor) and np.isposinf(u)
+                upper_is_pos_inf = not isinstance(u, tf.Tensor) and np.isposinf(u)
 
-                if not lower_is_neg_inf and lower_is_pos_inf:
+                if not lower_is_neg_inf and upper_is_pos_inf:
                     conditions.append(tf.greater(var, l))
-                elif lower_is_neg_inf and not lower_is_pos_inf:
+                elif lower_is_neg_inf and not upper_is_pos_inf:
                     conditions.append(tf.less(var, u))
-                elif not (lower_is_neg_inf or lower_is_pos_inf):
+                elif not (lower_is_neg_inf or upper_is_pos_inf):
                     conditions.append(tf.logical_and(tf.greater(var, l), tf.less(var, u)))
 
             if len(conditions) > 0:
