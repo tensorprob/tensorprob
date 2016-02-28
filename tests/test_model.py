@@ -185,12 +185,12 @@ def test_nll():
     model.observed(X)
 
     xs = np.linspace(-5, 5, 100)
-    out1 = -sum(st.norm.logpdf(xs, 0, 1))
     model.initialize({
         mu: 0,
         sigma: 1
     })
-    out2 = model.nll(xs)
+    out1 = model.nll(xs)
+    out2 = -sum(st.norm.logpdf(xs, 0, 1))
     assert_almost_equal(out1, out2, 10)
 
 

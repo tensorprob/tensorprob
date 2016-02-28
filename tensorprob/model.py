@@ -175,6 +175,11 @@ class Model(object):
             # hidden_logps contains a single value
             hidden_logps = [self._get_rewritten(self._description[v].logp) for v in self._hidden]
 
+            # Handle the case where we don't have observed variables.
+            # We define the probability to not observe anything as 1.
+            if not observed_logps:
+                observed_logps = [tf.constant(0, dtype=config.dtype)]
+
             self._pdf = tf.exp(tf.add_n(
                 observed_logps
             ))
@@ -182,6 +187,7 @@ class Model(object):
                 [tf.reduce_sum(logp) for logp in observed_logps] +
                 hidden_logps
             )
+
             variables = [self._hidden[k] for k in self._hidden_sorted]
             self._nll_grad = tf.gradients(self._nll, variables)
             for i, (v, g) in enumerate(zip(variables, self._nll_grad)):
@@ -268,6 +274,16 @@ class Model(object):
         self.assign({k: v for k, v in zip(sorted(self._hidden.keys(), key=lambda x: x.name), out.x)})
         return out
 
+    def mcmc(self, *args, **kwargs):
+        sampler = kwargs.get('sampler')
+        samples = kwargs.get('samples')
+        self._set_data(args)
+
+        if sampler is None:
+            from .samplers import EmceeSampler
+            sampler = EmceeSampler(walkers=40, session=self.session)
+
+        return sampler.sample(list(self._hidden.values()), self._nll, samples=samples)
 
 __all__ = [
     Model,
