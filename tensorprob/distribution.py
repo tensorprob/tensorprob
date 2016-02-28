@@ -100,9 +100,15 @@ def Distribution(distribution_init):
 
         # Add the new variables to the model description
         for variable, bound in zip(variables, bounds):
-            Model.current_model._description[variable] = Description(
-                Distribution.logp, Distribution.integral, bound
+            description = Description(
+                Distribution.logp,
+                Distribution.integral,
+                bound,
+                tf.constant(1, config.dtype),
+                [X for X in Model.current_model._full_description if X in args]
             )
+            Model.current_model._description[variable] = description
+            Model.current_model._full_description[variable] = description
 
         return variable if len(variables) == 1 else variables
     return f

@@ -4,7 +4,7 @@ import tensorflow as tf
 
 from .. import config
 from ..distribution import Distribution
-from ..model import Model, Region
+from ..model import Model, Region, Description
 
 
 @Distribution
@@ -12,8 +12,8 @@ def Mix2(f, A, B, name=None):
     # TODO(chrisburr) Check if f is bounded between 0 and 1?
     X = tf.placeholder(config.dtype, name=name)
 
-    a_logp, a_integral, a_bounds = Model._current_model._description[A]
-    b_logp, b_integral, b_bounds = Model._current_model._description[B]
+    a_logp, a_integral, a_bounds, a_frac, _ = Model._current_model._description[A]
+    b_logp, b_integral, b_bounds, b_frac, _ = Model._current_model._description[B]
 
     def _integral(mix_bounds, sub_bounds, sub_integral):
         # Calculate the normalised logp
@@ -60,5 +60,20 @@ def Mix2(f, A, B, name=None):
         else:
             Model._current_model._silently_replace[dist] = X
             del Model._current_model._description[dist]
+
+    # Add the fractions to Model._full_description
+    logp, integral, bounds, frac, deps = Model._current_model._full_description[A]
+    Model._current_model._full_description[A] = Description(logp, integral, bounds, frac*f, deps)
+
+    for dep in deps:
+        logp, integral, bounds, frac, _ = Model._current_model._full_description[dep]
+        Model._current_model._full_description[dep] = Description(logp, integral, bounds, frac*f, deps)
+
+    logp, integral, bounds, frac, deps = Model._current_model._full_description[B]
+    Model._current_model._full_description[B] = Description(logp, integral, bounds, frac*(1-f), deps)
+
+    for dep in deps:
+        logp, integral, bounds, frac, _ = Model._current_model._full_description[dep]
+        Model._current_model._full_description[dep] = Description(logp, integral, bounds, frac*(1-f), deps)
 
     return X
