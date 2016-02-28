@@ -169,10 +169,19 @@ class Model(object):
         self._rewrite_graph(all_vars)
 
         with self.session.graph.as_default():
-            logps = [self._get_rewritten(self._description[v].logp) for v in self._observed]
+            # observed_logps contains one element per data point
+            observed_logps = [self._get_rewritten(self._description[v].logp) for v in self._observed]
+            # hidden_logps contains a single value
+            hidden_logps = [self._get_rewritten(self._description[v].logp) for v in self._hidden]
 
-            self._pdf = tf.exp(tf.add_n(logps))
-            self._nll = -tf.add_n([tf.reduce_sum(logp) for logp in logps])
+            self._pdf = tf.exp(tf.add_n(
+                observed_logps +
+                [tf.fill(tf.shape(observed_logps[0]), logp) for logp in hidden_logps]
+            ))
+            self._nll = -tf.add_n(
+                [tf.reduce_sum(logp) for logp in observed_logps] +
+                hidden_logps
+            )
             variables = [self._hidden[k] for k in self._hidden_sorted]
             self._nll_grad = tf.gradients(self._nll, variables)
             for i, (v, g) in enumerate(zip(variables, self._nll_grad)):
