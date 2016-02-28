@@ -117,7 +117,7 @@ class Model(object):
                         name='added',
                 )
             except ValueError:
-                # Ignore errors that occour when the input_map tries to
+                # Ignore errors that ocour when the input_map tries to
                 # rewrite a variable that isn't present in the graph
                 pass
 
