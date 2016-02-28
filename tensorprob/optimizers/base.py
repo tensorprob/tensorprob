@@ -14,7 +14,7 @@ class BaseOptimizer(object):
         self._session = session or tf.Session()
 
     def minimize_impl(self, objective, gradient, inits, bounds):
-            raise NotImplementedError
+        raise NotImplementedError
 
     def minimize(self, variables, cost, gradient=None, bounds=None):
         # Check if variables is iterable

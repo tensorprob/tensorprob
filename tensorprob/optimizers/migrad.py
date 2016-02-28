@@ -61,11 +61,11 @@ class MigradOptimizer(BaseOptimizer):
             return val
 
         m = self.iminuit.Minuit(
-                Min_Func(objective_, names),
-                grad_fcn=mygrad_func,
-                print_level=print_level,
-                errordef=1,
-                **all_kwargs
+            Min_Func(objective_, names),
+            grad_fcn=mygrad_func,
+            print_level=print_level,
+            errordef=1,
+            **all_kwargs
         )
 
         m.set_strategy(2)
