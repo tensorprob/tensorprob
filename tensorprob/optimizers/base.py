@@ -1,4 +1,3 @@
-
 from collections import Iterable
 import logging
 import numpy as np
@@ -50,6 +49,9 @@ class BaseOptimizer(object):
             min_bounds = []
             for current in bounds:
                 lower, upper = current
+
+                if isinstance(lower, tf.Tensor) or isinstance(upper, tf.Tensor):
+                    raise NotImplementedError("Specifying variable bounds to optimizers is not yet supported")
 
                 # Translate inf to None, which is what this minimizer understands
                 if lower is not None and np.isinf(lower):

@@ -36,14 +36,16 @@ class MigradOptimizer(BaseOptimizer):
 
         names = ['var_{}'.format(i) for i in range(len(inits))]
 
-        for n, x, bound in zip(names, inits, bounds):
-            x0[n] = x
-            # TODO use a method to set this correctly
-            x0['error_' + n] = 1
-            x0['limit_' + n] = bound
-
         all_kwargs = dict()
-        all_kwargs.update(x0)
+
+        for n, x in zip(names, inits):
+            all_kwargs[n] = x
+            # TODO use a method to set this correctly
+            all_kwargs['error_' + n] = 1
+
+        if bounds:
+            for n, b in zip(names, bounds):
+                all_kwargs['limit_' + n] = b
 
         if gradient:
             def mygrad_func(*x):
@@ -54,9 +56,7 @@ class MigradOptimizer(BaseOptimizer):
 
         def objective_(x):
             val = objective(x)
-            if np.isnan(val):
-                return 1e10
-            if np.isinf(val):
+            if np.isnan(val) or np.isinf(val):
                 return 1e10
             return val
 
