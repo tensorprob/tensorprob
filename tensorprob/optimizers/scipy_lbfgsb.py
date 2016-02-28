@@ -10,10 +10,13 @@ from .base import BaseOptimizer
 
 class ScipyLBFGSBOptimizer(BaseOptimizer):
 
-    def __init__(self, session=None, verbose=False, callback=None):
+    def __init__(self, session=None, verbose=False, callback=None, m=10, factr=1e3, pgtol=1e-3):
         self._session = session or tf.Session()
         self.verbose = verbose
         self.callback = callback
+        self.m = m
+        self.factr = factr
+        self.pgtol = pgtol
 
     def minimize(self, variables, cost, gradient=None, bounds=None):
         # Check if variables is iterable
@@ -54,10 +57,6 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
             for current in bounds:
                 lower, upper = current
 
-                # Variable limits should be ignored
-                if isinstance(lower, tf.Tensor) or isinstance(upper, tf.Tensor):
-                    raise NotImplementedError("ScipyLBFGSBOptimizer currently doesn't support variable bounds")
-
                 # Translate inf to None, which is what this minimizer understands
                 if lower is not None and np.isinf(lower):
                     lower = None
@@ -85,7 +84,17 @@ class ScipyLBFGSBOptimizer(BaseOptimizer):
             if self.callback is not None:
                 self.callback(xs)
 
-        results = fmin_l_bfgs_b(objective, inits, fprime=gradient_, callback=callback, approx_grad=approx_grad, bounds=min_bounds)
+        results = fmin_l_bfgs_b(
+                objective,
+                inits,
+                m=self.m,
+                fprime=gradient_,
+                factr=self.factr,
+                pgtol=self.pgtol,
+                callback=callback,
+                approx_grad=approx_grad,
+                bounds=min_bounds,
+        )
 
         ret = OptimizationResult()
         ret.x = results[0]
