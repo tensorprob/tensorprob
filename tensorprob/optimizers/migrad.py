@@ -32,17 +32,15 @@ class MigradOptimizer(BaseOptimizer):
 
         x0 = dict()
 
-        if self.verbose:
-            print_level = 2
-        else:
-            print_level = 0
+        print_level = 2 if self.verbose else 0
 
         names = ['var_{}'.format(i) for i in range(len(inits))]
 
-        for n, x in zip(names, inits):
+        for n, x, bound in zip(names, inits, bounds):
             x0[n] = x
             # TODO use a method to set this correctly
             x0['error_' + n] = 1
+            x0['limit_' + n] = bound
 
         all_kwargs = dict()
         all_kwargs.update(x0)
@@ -62,15 +60,20 @@ class MigradOptimizer(BaseOptimizer):
                 return 1e10
             return val
 
-        m = self.iminuit.Minuit(Min_Func(objective_, names), grad_fcn=mygrad_func, print_level=print_level, errordef=1, **all_kwargs)
+        m = self.iminuit.Minuit(
+                Min_Func(objective_, names),
+                grad_fcn=mygrad_func,
+                print_level=print_level,
+                errordef=1,
+                **all_kwargs
+        )
+
         m.set_strategy(2)
         a, b = m.migrad()
 
         x = []
         for name in names:
             x.append(m.values[name])
-
-        print(a)
 
         return OptimizationResult(
             x=x,

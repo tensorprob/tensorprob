@@ -1,6 +1,13 @@
+
+from collections import Iterable
+import logging
 import numpy as np
 import tensorflow as tf
 from .. import config
+
+
+logger = logging.getLogger('tensorprob')
+
 
 class BaseOptimizer(object):
 
@@ -8,13 +15,11 @@ class BaseOptimizer(object):
         self._session = session or tf.Session()
 
     def minimize_impl(self, objective, gradient, inits, bounds):
-        raise NotImplementedError
+            raise NotImplementedError
 
     def minimize(self, variables, cost, gradient=None, bounds=None):
         # Check if variables is iterable
-        try:
-            iter(variables)
-        except TypeError:
+        if not isinstance(variables, Iterable):
             raise ValueError("Variables parameter is not iterable")
 
         for v in variables:
@@ -27,8 +32,7 @@ class BaseOptimizer(object):
             feed_dict = {k: v for k, v in zip(variables, xs)}
             # Cast just in case the user-supplied function returns something else
             val = np.float64(self._session.run(cost, feed_dict=feed_dict))
-            if config.debug:
-                print('objective', val, xs)
+            logger.debug('Objective: {} {}'.format(val, xs))
             return val
 
         if gradient is not None:
@@ -36,8 +40,7 @@ class BaseOptimizer(object):
                 feed_dict = {k: v for k, v in zip(variables, xs)}
                 # Cast just in case the user-supplied function returns something else
                 val = np.array(self._session.run(gradient, feed_dict=feed_dict))
-                if config.debug:
-                    print('gradient', val, xs)
+                logger.debug('Gradient: {} {}'.format(val, xs))
                 return val
             approx_grad = False
         else:
