@@ -18,6 +18,91 @@ def test_scalar_creation_outside_with():
     tp.Parameter(name='mu')
 
 
+@raises(tp.model.ModelError)
+def test_observed_in_model_block():
+    with tp.Model():
+        mu = tp.Parameter()
+        sigma = tp.Parameter(lower=0)
+        X = tp.Normal(mu, sigma)
+        tp.observed(X)
+
+
+@raises(tp.model.ModelError)
+def test_initalize_in_model_block():
+    with tp.Model() as model:
+        mu = tp.Parameter()
+        sigma = tp.Parameter(lower=0)
+        tp.Normal(mu, sigma)
+        model.initialize({
+            mu: 5,
+            sigma: 2
+        })
+
+
+@raises(tp.model.ModelError)
+def test_observed_in_model_block():
+    with tp.Model() as model:
+        mu = tp.Parameter()
+        sigma = tp.Parameter(lower=0)
+        X = tp.Normal(mu, sigma)
+    model.observed(X)
+    model.initialize({
+        mu: 5,
+        sigma: 2
+    })
+    model.initialize({
+        mu: 5,
+        sigma: 2
+    })
+
+
+@raises(tp.model.ModelError)
+def test_initialise_before_observed():
+    with tp.Model() as model:
+        mu = tp.Parameter()
+        sigma = tp.Parameter(lower=0)
+        tp.Normal(mu, sigma)
+    model.initialize({
+        mu: 5,
+        sigma: 2
+    })
+
+
+@raises(tp.model.ModelError)
+def test_initialise_with_too_few_variables():
+    with tp.Model() as model:
+        mu = tp.Parameter()
+        sigma = tp.Parameter(lower=0)
+        X = tp.Normal(mu, sigma)
+    model.observed(X)
+    model.initialize({
+        mu: 5
+    })
+
+
+@raises(ValueError)
+def test_initialise_with_list():
+    with tp.Model() as model:
+        mu = tp.Parameter()
+        sigma = tp.Parameter(lower=0)
+        X = tp.Normal(mu, sigma)
+    model.observed(X)
+    model.initialize([5, 2])
+
+
+@raises(ValueError)
+def test_initialise_with_invalid_keys():
+    with tp.Model() as model:
+        mu = tp.Parameter()
+        sigma = tp.Parameter(lower=0)
+        X = tp.Normal(mu, sigma)
+    model.observed(X)
+    model.initialize({
+        'Parameter_1': 5,
+        'Parameter_2': 2
+    })
+
+
 def test_distribution_creation_global_graph():
     # Distribution creation doesn't modify the global graph
     before = tf.get_default_graph().as_graph_def()
@@ -139,6 +224,43 @@ def test_assign():
     assert model.state == {mu: -100, sigma: 0}
     model.assign(feed)
     assert model.state == feed
+
+
+@raises(tp.model.ModelError)
+def test_assign_in_model_block():
+    model = tp.Model()
+    with model:
+        mu = tp.Parameter(lower=-5, upper=5)
+        sigma = tp.Parameter(lower=0)
+        X = tp.Normal(mu, sigma)
+        model.assign({mu: 1, sigma: 0})
+
+    model.observed(X)
+    model.initialize({mu: 42, sigma: 1})
+
+
+@raises(tp.model.ModelError)
+def test_assign_in_before_observed():
+    model = tp.Model()
+    with model:
+        mu = tp.Parameter(lower=-5, upper=5)
+        sigma = tp.Parameter(lower=0)
+        tp.Normal(mu, sigma)
+
+    model.assign({mu: 1, sigma: 0})
+
+
+@raises(tp.model.ModelError)
+def test_assign_in_before_initalize():
+    model = tp.Model()
+    with model:
+        mu = tp.Parameter(lower=-5, upper=5)
+        sigma = tp.Parameter(lower=0)
+        X = tp.Normal(mu, sigma)
+        model.assign({mu: 1, sigma: 0})
+
+    model.observed(X)
+    model.assign({mu: 1, sigma: 0})
 
 
 @raises(ValueError)
