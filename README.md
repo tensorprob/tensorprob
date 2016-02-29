@@ -75,12 +75,13 @@ model.assign({
     b: 2,
     sigma: 10,
 })
-results = model.fit(xs, ys)
-print(results)
 
 import numpy as np
 xs = np.linspace(0, 1, 100)
 ys = 1 * xs + 0 +  np.random.normal(0, .1, len(xs))
+
+results = model.fit(xs, ys)
+print(results)
 
 import matplotlib.pyplot as plt
 plt.plot(xs, ys, 'ro')
