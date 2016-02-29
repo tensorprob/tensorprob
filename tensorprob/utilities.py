@@ -5,6 +5,8 @@ import numpy as np
 import tensorflow as tf
 from six.moves import zip_longest
 
+from . import config
+
 
 NAME_COUNTERS = defaultdict(lambda: 0)
 
@@ -59,3 +61,44 @@ def pairwise(iterable):
     a, b = itertools.tee(iterable)
     next(b, None)
     return zip(a, b)
+
+
+def set_logp_to_neg_inf(X, logp, bounds):
+    """Set `logp` to negative infinity when `X` is outside the allowed bounds.
+
+    # Arguments
+        X: tensorflow.Tensor
+            The variable to apply the bounds to
+        logp: tensorflow.Tensor
+            The log probability corrosponding to `X`
+        bounds: list of `Region` objects
+            The regions corrosponding to allowed regions of `X`
+
+    # Returns
+        logp: tensorflow.Tensor
+            The newly bounded log probability
+    """
+    conditions = []
+    for l, u in bounds:
+        lower_is_neg_inf = not isinstance(l, tf.Tensor) and np.isneginf(l)
+        upper_is_pos_inf = not isinstance(u, tf.Tensor) and np.isposinf(u)
+
+        if not lower_is_neg_inf and upper_is_pos_inf:
+            conditions.append(tf.greater(X, l))
+        elif lower_is_neg_inf and not upper_is_pos_inf:
+            conditions.append(tf.less(X, u))
+        elif not (lower_is_neg_inf or upper_is_pos_inf):
+            conditions.append(tf.logical_and(tf.greater(X, l), tf.less(X, u)))
+
+    if len(conditions) > 0:
+        is_inside_bounds = conditions[0]
+        for condition in conditions[1:]:
+            is_inside_bounds = tf.logical_or(is_inside_bounds, condition)
+
+        logp = tf.select(
+            is_inside_bounds,
+            logp,
+            tf.fill(tf.shape(X), config.dtype(-np.inf))
+        )
+
+    return logp

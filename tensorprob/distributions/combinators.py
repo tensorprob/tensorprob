@@ -64,9 +64,7 @@ def Mix2(f, A, B, name=None):
     Distribution.integral = integral
 
     # Modify the current model to recognize that X and Y have been removed
-    for dist in A, B:
-        # TODO(chrisburr) Explain
-        # TODO(chrisburr) Add test for combinators of combinators
+    for dist, new_bounds, f_scale in zip((A, B), (a_bounds, b_bounds), (f, 1-f)):
         if dist in Model._current_model._silently_replace.values():
             # We need to copy the items to a list as we're deleting items from
             # the dictionary
@@ -81,19 +79,12 @@ def Mix2(f, A, B, name=None):
             Model._current_model._silently_replace[dist] = X
             del Model._current_model._description[dist]
 
-    # Add the fractions to Model._full_description
-    logp, integral, bounds, frac, deps = Model._current_model._full_description[A]
-    Model._current_model._full_description[A] = Description(logp, integral, a_bounds, frac*f, deps)
+        # Add the fractions and new bounds to Model._full_description
+        logp, integral, bounds, frac, deps = Model._current_model._full_description[dist]
+        Model._current_model._full_description[dist] = Description(logp, integral, new_bounds, frac*f_scale, deps)
 
-    for dep in deps:
-        logp, integral, bounds, frac, _ = Model._current_model._full_description[dep]
-        Model._current_model._full_description[dep] = Description(logp, integral, bounds, frac*f, deps)
-
-    logp, integral, bounds, frac, deps = Model._current_model._full_description[B]
-    Model._current_model._full_description[B] = Description(logp, integral, b_bounds, frac*(1-f), deps)
-
-    for dep in deps:
-        logp, integral, bounds, frac, _ = Model._current_model._full_description[dep]
-        Model._current_model._full_description[dep] = Description(logp, integral, bounds, frac*(1-f), deps)
+        for dep in deps:
+            logp, integral, bounds, frac, _ = Model._current_model._full_description[dep]
+            Model._current_model._full_description[dep] = Description(logp, integral, bounds, frac*f_scale, deps)
 
     return X
