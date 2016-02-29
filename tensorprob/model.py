@@ -77,6 +77,32 @@ class Model(object):
         with self._model_graph.as_default():
             for var, (logp, integral, bounds, frac, _) in self._full_description.items():
                 logp -= tf.log(tf.add_n([integral(l, u) for l, u in bounds]))
+
+                # Force logp to negative infinity when outside the allowed bounds
+                conditions = []
+                for l, u in bounds:
+                    lower_is_neg_inf = not isinstance(l, tf.Tensor) and np.isneginf(l)
+                    upper_is_pos_inf = not isinstance(u, tf.Tensor) and np.isposinf(u)
+
+                    if not lower_is_neg_inf and upper_is_pos_inf:
+                        conditions.append(tf.greater(var, l))
+                    elif lower_is_neg_inf and not upper_is_pos_inf:
+                        conditions.append(tf.less(var, u))
+                    elif not (lower_is_neg_inf or upper_is_pos_inf):
+                        conditions.append(tf.logical_and(tf.greater(var, l), tf.less(var, u)))
+
+                if len(conditions) > 0:
+                    is_inside_bounds = conditions[0]
+                    for condition in conditions[1:]:
+                        is_inside_bounds = tf.logical_or(is_inside_bounds, condition)
+
+                    logp = tf.select(
+                        is_inside_bounds,
+                        logp,
+                        tf.fill(tf.shape(var), config.dtype(-np.inf))
+                    )
+
+                # Add the changed logp to the model description
                 self._full_description[var] = Description(logp, integral, bounds, frac, _)
                 if var in self._description:
                     self._description[var] = Description(logp, integral, bounds, frac, _)
