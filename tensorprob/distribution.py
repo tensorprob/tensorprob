@@ -51,8 +51,8 @@ def Distribution(distribution_init):
         Distribution.depends: (optional) list of tensorflow.Tensor
             The sub-distributions of this distribution
 
-    Most distributions are bounded automatically however some distributions,
-    such as combiantors, require access to the bounds of the distribution.
+    Most distributions are bounded automatically, however some distributions,
+    such as combinators, require access to the bounds of the distribution.
     These can be accessed using `Distribution.bounds(N)`.
 
     # Arguments:

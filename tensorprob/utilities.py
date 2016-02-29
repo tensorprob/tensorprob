@@ -1,4 +1,4 @@
-from collections import defaultdict,  Iterable, namedtuple
+from collections import defaultdict, Iterable, namedtuple
 import itertools
 
 import numpy as np
@@ -113,7 +113,7 @@ def set_logp_to_neg_inf(X, logp, bounds):
 
 
 def find_common_bounds(bounds_1, bounds_2):
-    """Find a new set of boundries combining `bounds_1` and `bounds_2`
+    """Find a new set of boundaries combining `bounds_1` and `bounds_2`
 
     # Arguments
         bounds_1: list of `Region` objects
