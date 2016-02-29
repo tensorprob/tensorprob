@@ -1,90 +1,96 @@
-from itertools import product
-
 import tensorflow as tf
 
 from .. import config
 from ..distribution import Distribution
-from ..model import Model, Region, Description
+from ..model import Model
+from ..utilities import Description, find_common_bounds, Region
+
+
+def _integrate_component(sub_bounds, sub_integral):
+    if sub_bounds:
+        return tf.add_n([sub_integral(l, u) for l, u in sub_bounds])
+    else:
+        return tf.constant(1, config.dtype)
+
+
+def _recurse_deps(X, f_scale, bounds):
+    """Modify the fractional contribution and bounds of `X` in the model
+
+    Recursivly iterates through the model, scaling `X` and all it's
+    dependencies by `f_scale`.
+
+    # Arguments:
+        X: tensorflow.Tensor
+            The variable to rewrite to modify
+        f_scale: tensorflow.Tensor
+            The fraction to scale `X`'s pdf by
+        bounds: list of `Region` objects
+            The boundaries to add to `X`
+    """
+    logp, integral, x_bounds, frac, deps = Model._current_model._full_description[X]
+
+    x_bounds = find_common_bounds(x_bounds, bounds)
+    frac = frac*f_scale
+
+    Model._current_model._full_description[X] = Description(logp, integral, x_bounds, frac, deps)
+
+    for dep in deps:
+        _recurse_deps(dep, f_scale, x_bounds)
 
 
 @Distribution
 def Mix2(f, A, B, name=None):
+    return _MixN([A, B], [f, 1-f], name)
+
+
+def _MixN(Xs, fractions, name=None):
     # TODO(chrisburr) Check if f is bounded between 0 and 1?
     X = tf.placeholder(config.dtype, name=name)
+    mix_bounds = Distribution.bounds(1)[0]
 
-    a_logp, a_integral, a_bounds, a_frac, _ = Model._current_model._description[A]
-    b_logp, b_integral, b_bounds, b_frac, _ = Model._current_model._description[B]
+    current_model = Model._current_model
 
-    def _integral(mix_bounds, sub_bounds, sub_integral):
-        """Calculate the normalistion and bounds for the sub-distributions.
+    full_logp = []
+    all_integrals = []
+    for dist, f_scale in zip(Xs, fractions):
+        logp, integral, bounds, frac, _ = current_model._description[dist]
+        bounds = find_common_bounds(mix_bounds, bounds)
+        normalisation_1 = _integrate_component(bounds, integral)
 
-        # Arguments
-            mix_bounds: list of `Region` objects
-                The allowed regions for the combined distribution
-            sub_bounds: list of `Region` objects
-                The allowed regions for the sub-distribution
-            sub_integral: function
-                The integral function of the sub-distribution
+        full_logp.append(f_scale*tf.exp(logp)/normalisation_1)
 
-        # Returns
-            result: TensorFlow Variable
-                Result of calculating `sub_integral` with the provided bounds
-            new_bounds: list of `Region` objects
-                The reduced set of bounds that now apply to the distribution
-        """
-        # Calculate the normalised logp
-        integrals = []
-        new_bounds = []
-        for (mix_lower, mix_upper), (sub_lower, sub_upper) in product(mix_bounds, sub_bounds):
-            # Ignore this region if it's outside the current limits
-            if sub_upper <= mix_lower or mix_upper <= sub_lower:
-                continue
-            new_bounds.append(Region(max(sub_lower, mix_lower), min(sub_upper, mix_upper)))
-            # Else keep the region, tightening the edges as reqired
-            integrals.append(sub_integral(max(sub_lower, mix_lower), min(sub_upper, mix_upper)))
+        all_integrals.append((f_scale, bounds, integral, normalisation_1))
 
-        result = tf.add_n(integrals) if integrals else tf.constant(1, config.dtype)
-        return result, new_bounds
-
-    bounds = Distribution.bounds(1)[0]
-    a_normalisation_1, a_bounds = _integral(bounds, a_bounds, a_integral)
-    b_normalisation_1, b_bounds = _integral(bounds, b_bounds, b_integral)
-
-    Distribution.logp = tf.log(
-        f*tf.exp(a_logp)/a_normalisation_1 +
-        (1-f)*tf.exp(b_logp)/b_normalisation_1
-    )
-
-    def integral(lower, upper):
-        a_normalisation_2, _ = _integral([Region(lower, upper)], a_bounds, a_integral)
-        b_normalisation_2, _ = _integral([Region(lower, upper)], b_bounds, b_integral)
-
-        return f/a_normalisation_1*a_normalisation_2 + (1-f)/b_normalisation_1*b_normalisation_2
-
-    Distribution.integral = integral
-
-    # Modify the current model to recognize that X and Y have been removed
-    for dist, new_bounds, f_scale in zip((A, B), (a_bounds, b_bounds), (f, 1-f)):
-        if dist in Model._current_model._silently_replace.values():
-            # We need to copy the items to a list as we're deleting items from
-            # the dictionary
-            for key, value in list(Model._current_model._silently_replace.items()):
-                if value == dist:
-                    Model._current_model._silently_replace[value] = X
-                    Model._current_model._silently_replace[key] = X
-                    if dist in Model._current_model._description:
-                        del Model._current_model._description[dist]
+        # Modify the current model to recognize that 'deps' has been removed
+        if dist in current_model._silently_replace.values():
+            # We need to copy the items to a list as we're adding items
+            for key, value in list(current_model._silently_replace.items()):
+                if value != dist:
+                    continue
+                current_model._silently_replace[value] = X
+                current_model._silently_replace[key] = X
+                if dist in current_model._description:
+                    del current_model._description[dist]
 
         else:
-            Model._current_model._silently_replace[dist] = X
-            del Model._current_model._description[dist]
+            current_model._silently_replace[dist] = X
+            del current_model._description[dist]
 
-        # Add the fractions and new bounds to Model._full_description
-        logp, integral, bounds, frac, deps = Model._current_model._full_description[dist]
-        Model._current_model._full_description[dist] = Description(logp, integral, new_bounds, frac*f_scale, deps)
+        _recurse_deps(dist, f_scale, bounds)
 
-        for dep in deps:
-            logp, integral, bounds, frac, _ = Model._current_model._full_description[dep]
-            Model._current_model._full_description[dep] = Description(logp, integral, bounds, frac*f_scale, deps)
+    # Set properties on Distribution
+    Distribution.logp = tf.log(tf.add_n(full_logp))
+
+    def _integral(lower, upper):
+        result = []
+        for f_scale, bounds, integral, normalisation_1 in all_integrals:
+            integral_bounds = find_common_bounds([Region(lower, upper)], bounds)
+            normalisation_2 = _integrate_component(integral_bounds, integral)
+            result.append(f_scale/normalisation_1*normalisation_2)
+        return tf.add_n(result)
+
+    Distribution.integral = _integral
+
+    Distribution.depends = Xs
 
     return X

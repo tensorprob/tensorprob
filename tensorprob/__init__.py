@@ -29,9 +29,10 @@ logger.addHandler(handler)
 from . import config
 from . import utilities
 from . import distributions
-from .distribution import Distribution, DistributionError, Region
+from .distribution import Distribution, DistributionError
 from .model import Model, ModelError
 from .parameter import Parameter
 from .distributions import *
 from .optimizers import *
 from .samplers import *
+from .utilities import Region

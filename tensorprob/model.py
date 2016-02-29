@@ -1,20 +1,17 @@
-from collections import namedtuple
 import logging
 logger = logging.getLogger('tensorprob')
 
-import numpy as np
 import tensorflow as tf
 
 from . import config
-from .utilities import classproperty, generate_name, set_logp_to_neg_inf
-
-
-# Used to specify valid ranges for variables
-Region = namedtuple('Region', ['lower', 'upper'])
-# Used to describe a variable's role in the model
-Description = namedtuple('Description', ['logp', 'integral', 'bounds', 'fraction', 'deps'])
-# Used for returning components of a model
-ModelSubComponet = namedtuple('ModelSubComponet', ['pdf'])
+from .utilities import (
+    classproperty,
+    Description,
+    generate_name,
+    ModelSubComponet,
+    Region,
+    set_logp_to_neg_inf
+)
 
 
 class ModelError(RuntimeError):

@@ -5,7 +5,8 @@ import tensorflow as tf
 
 from . import config
 from . import utilities
-from .model import Description, Model, ModelError, Region
+from .model import Model, ModelError
+from .utilities import Description, Region
 
 
 class DistributionError(Exception):
@@ -47,6 +48,8 @@ def Distribution(distribution_init):
         Distribution.integral: function
             A function with arguments (lower, upper) that returns the integral
             of the function between the specifed bounds.
+        Distribution.depends: (optional) list of tensorflow.Tensor
+            The sub-distributions of this distribution
 
     Most distributions are bounded automatically however some distributions,
     such as combiantors, require access to the bounds of the distribution.
@@ -78,6 +81,7 @@ def Distribution(distribution_init):
 
         Distribution.logp = None
         Distribution.integral = None
+        Distribution.depends = []
         Distribution.bounds = lambda ndim: _parse_bounds(ndim, lower, upper, bounds)
         variables = distribution_init(*args, name=name)
 
@@ -107,7 +111,7 @@ def Distribution(distribution_init):
                 Distribution.integral,
                 bound,
                 tf.constant(1, config.dtype),
-                [X for X in Model.current_model._full_description if X in args]
+                Distribution.depends
             )
             Model.current_model._description[variable] = description
             Model.current_model._full_description[variable] = description

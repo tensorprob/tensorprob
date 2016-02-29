@@ -1,4 +1,4 @@
-from collections import defaultdict, Iterable
+from collections import defaultdict,  Iterable, namedtuple
 import itertools
 
 import numpy as np
@@ -9,6 +9,14 @@ from . import config
 
 
 NAME_COUNTERS = defaultdict(lambda: 0)
+
+# CONTAINERS
+# Used to specify valid ranges for variables
+Region = namedtuple('Region', ['lower', 'upper'])
+# Used to describe a variable's role in the model
+Description = namedtuple('Description', ['logp', 'integral', 'bounds', 'fraction', 'deps'])
+# Used for returning components of a model
+ModelSubComponet = namedtuple('ModelSubComponet', ['pdf'])
 
 
 def generate_name(obj):
@@ -102,3 +110,22 @@ def set_logp_to_neg_inf(X, logp, bounds):
         )
 
     return logp
+
+
+def find_common_bounds(bounds_1, bounds_2):
+    """Find a new set of boundries combining `bounds_1` and `bounds_2`
+
+    # Arguments
+        bounds_1: list of `Region` objects
+        bounds_2: list of `Region` objects
+
+    # Returns
+        new_bounds: list of `Region` objects
+    """
+    new_bounds = []
+    for (lower_1, upper_1), (lower_2, upper_2) in itertools.product(bounds_1, bounds_2):
+        # Ignore this region if it's outside the current limits
+        if upper_1 <= lower_2 or upper_2 <= lower_1:
+            continue
+        new_bounds.append(Region(max(lower_1, lower_2), min(upper_1, upper_2)))
+    return new_bounds
