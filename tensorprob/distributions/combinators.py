@@ -40,12 +40,12 @@ def _recurse_deps(X, f_scale, bounds):
 
 @Distribution
 def Mix2(f, A, B, name=None):
-    return _MixN([A, B], [f, 1-f], name)
+    return _MixN([f, 1-f], [A, B], name)
 
 
 @Distribution
 def Mix3(f1, f2, A, B, C, name=None):
-    return _MixN([A, B, C], [f1*f2, (1-f1)*f2, (1-f2)], name)
+    return _MixN([f1*f2, (1-f1)*f2, (1-f2)], [A, B, C], name)
 
 
 @Distribution
@@ -56,10 +56,10 @@ def MixN(fs, Xs, name=None):
     for f in fs[1:]:
         fractions = [f*frac for frac in fractions]
         fractions.append(1-f)
-    return _MixN(Xs, fractions, name)
+    return _MixN(fractions, Xs, name)
 
 
-def _MixN(Xs, fractions, name=None):
+def _MixN(fractions, Xs, name=None):
     # TODO(chrisburr) Check if f is bounded between 0 and 1?
     X = tf.placeholder(config.dtype, name=name)
     mix_bounds = Distribution.bounds(1)[0]
