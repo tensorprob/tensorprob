@@ -48,6 +48,17 @@ def Mix3(f1, f2, A, B, C, name=None):
     return _MixN([A, B, C], [f1*f2, (1-f1)*f2, (1-f2)], name)
 
 
+@Distribution
+def MixN(fs, Xs, name=None):
+    # Eqivilent to calling Mix2(Mix2(Mix2(Mix2(A, B), C), D), E)
+    assert len(fs)+1 == len(Xs)
+    fractions = [fs[0], 1-fs[0]]
+    for f in fs[1:]:
+        fractions = [f*frac for frac in fractions]
+        fractions.append(1-f)
+    return _MixN(Xs, fractions, name)
+
+
 def _MixN(Xs, fractions, name=None):
     # TODO(chrisburr) Check if f is bounded between 0 and 1?
     X = tf.placeholder(config.dtype, name=name)
