@@ -1,8 +1,8 @@
 # TensorProb
 
-[![Build Status](https://img.shields.io/travis/ibab/tensorprob/master.svg)](https://travis-ci.org/ibab/tensorprob)
-[![Coverage Status](https://img.shields.io/coveralls/ibab/tensorprob/master.svg)](https://coveralls.io/github/ibab/tensorprob?branch=master)
-[![Documentation](https://img.shields.io/badge/documentation-link-blue.svg)](https://ibab.github.io/tensorprob)
+[![Build Status](https://img.shields.io/travis/tensorprob/tensorprob/master.svg)](https://travis-ci.org/tensorprob/tensorprob)
+[![Coverage Status](https://img.shields.io/coveralls/tensorprob/tensorprob/master.svg)](https://coveralls.io/github/tensorprob/tensorprob?branch=master)
+[![Documentation](https://img.shields.io/badge/documentation-link-blue.svg)](https://tensorprob.github.io/tensorprob)
 
 TensorProb is a probabalistic graphical modeling framework based on
 [TensorFlow](https://github.com/tensorflow/tensorflow).
@@ -26,7 +26,7 @@ with Model() as model:
 model.observed(X)
 
 # Set the initial values
-model.assign({
+model.initialize({
     mu: 10,
     sigma: 10,
 })
@@ -70,7 +70,7 @@ with Model() as model:
     y = Normal(a * X + b, sigma)
 
 model.observed(X, y)
-model.assign({
+model.initialize({
     a: 2,
     b: 2,
     sigma: 10,
