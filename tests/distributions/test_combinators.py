@@ -1,6 +1,8 @@
 from __future__ import division
 
 import numpy as np
+import scipy.stats as st
+from numpy.testing import assert_array_almost_equal
 
 from tensorprob import Model, Parameter, Normal, Exponential, Mix2
 
@@ -43,6 +45,7 @@ def test_mix2_fit():
 
     result = model.fit(data)
 
+    # Check the fit was successful
     assert result.success
     assert abs(model.state[mu] - 19) < 5e-3
     assert abs(model.state[sigma] - 2) < 5e-3
@@ -108,6 +111,15 @@ def test_mix2_fit_with_mix2_input():
 
     result = model.fit(data)
 
+    from matplotlib import pyplot as plt
+    from matplotlib_hep import histpoints
+    xs = np.linspace(-5, 41, 1000)
+    histpoints(data, bins=np.linspace(-5, 41, (41+5)*3+1), normed=True, ms=1)
+    plt.plot(xs, model.pdf(xs), 'b-')
+    plt.xlim(-5, 41)
+    plt.show()
+
+    # Check the fit was successful
     assert result.success
     assert abs(model.state[mu] - 19) < 3e-2
     assert abs(model.state[sigma] - 2) < 1e-3
@@ -115,3 +127,57 @@ def test_mix2_fit_with_mix2_input():
     assert abs(model.state[b] - 0.05) < 3e-4
     assert abs(model.state[f_1] - (len(norm_data)/(len(exp_1_data)+len(norm_data)))) < 5e-3
     assert abs(model.state[f_2] - ((len(exp_1_data)+len(norm_data))/len(data))) < 5e-4
+
+    # Check if we can access the individual components
+    xs = np.linspace(0, 41, 1001)
+
+    def allowed_point(x, bounds):
+        @np.vectorize
+        def allowed_point(x):
+            for l, u in bounds:
+                if l < x and x < u:
+                    return 1
+            return 0
+        return allowed_point(x)
+
+    # Normal
+    bounds = [(6, 17), (18, 21), (22, 36)]
+    out1 = st.norm.pdf(xs, model.state[mu], model.state[sigma]) * allowed_point(xs, bounds)
+    integral = sum(
+        st.norm.cdf(u, model.state[mu], model.state[sigma]) -
+        st.norm.cdf(l, model.state[mu], model.state[sigma])
+        for l, u in bounds
+    )
+    out1 *= model.state[f_1] * model.state[f_2] / integral
+
+    out2 = model[X1].pdf(xs)
+
+    assert_array_almost_equal(out1, out2, 11)
+
+    # Exponential 1
+    bounds = [(6, 8), (10, 17), (18, 27), (31, 36)]
+    out1 = st.expon.pdf(xs, 0, 1/model.state[a]) * allowed_point(xs, bounds)
+    integral = sum(
+        st.expon.cdf(u, 0, 1/model.state[a]) -
+        st.expon.cdf(l, 0, 1/model.state[a])
+        for l, u in bounds
+    )
+    out1 *= (1-model.state[f_1]) * model.state[f_2] / integral
+
+    out2 = model[X2].pdf(xs)
+
+    assert_array_almost_equal(out1, out2, 11)
+
+    # Exponential 2
+    bounds = [(6, 17), (18, 36)]
+    out1 = st.expon.pdf(xs, 0, 1/model.state[b]) * allowed_point(xs, bounds)
+    integral = sum(
+        st.expon.cdf(u, 0, 1/model.state[b]) -
+        st.expon.cdf(l, 0, 1/model.state[b])
+        for l, u in bounds
+    )
+    out1 *= (1-model.state[f_2]) / integral
+
+    out2 = model[X3].pdf(xs)
+
+    assert_array_almost_equal(out1, out2, 11)
