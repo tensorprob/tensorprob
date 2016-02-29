@@ -43,6 +43,11 @@ def Mix2(f, A, B, name=None):
     return _MixN([A, B], [f, 1-f], name)
 
 
+@Distribution
+def Mix3(f1, f2, A, B, C, name=None):
+    return _MixN([A, B, C], [f1*f2, (1-f1)*f2, (1-f2)], name)
+
+
 def _MixN(Xs, fractions, name=None):
     # TODO(chrisburr) Check if f is bounded between 0 and 1?
     X = tf.placeholder(config.dtype, name=name)
