@@ -5,7 +5,8 @@ import tensorflow as tf
 
 from . import config
 from . import utilities
-from .model import Description, Model, ModelError, Region
+from .model import Model, ModelError
+from .utilities import Description, Region
 
 
 class DistributionError(Exception):
@@ -37,6 +38,30 @@ def _parse_bounds(num_dimensions, lower, upper, bounds):
 
 
 def Distribution(distribution_init):
+    """Decorator used for defining distributions.
+
+    The distribution function should return `N` tensorflow.Tensor objects
+    where `N` is the number of dimensions the distribution has. Additionally
+    distributions should set:
+        Distribution.logp: tensorflow.Tensor
+            The log probability.
+        Distribution.integral: function
+            A function with arguments (lower, upper) that returns the integral
+            of the function between the specifed bounds.
+        Distribution.depends: (optional) list of tensorflow.Tensor
+            The sub-distributions of this distribution
+
+    Most distributions are bounded automatically, however some distributions,
+    such as combinators, require access to the bounds of the distribution.
+    These can be accessed using `Distribution.bounds(N)`.
+
+    # Arguments:
+        distribution_init: function
+
+    # Returns:
+        f: function
+            The decorated version of `distribution_init`
+    """
     def f(*args, **kwargs):
         # Why legacy Python, why...
         lower = kwargs.get('lower')
@@ -56,6 +81,7 @@ def Distribution(distribution_init):
 
         Distribution.logp = None
         Distribution.integral = None
+        Distribution.depends = []
         Distribution.bounds = lambda ndim: _parse_bounds(ndim, lower, upper, bounds)
         variables = distribution_init(*args, name=name)
 
@@ -66,6 +92,7 @@ def Distribution(distribution_init):
         # Ensure the distribution has set the required properties
         if Distribution.logp is None:
             raise DistributionError('Distributions must define logp')
+        logp = Distribution.logp
 
         if Distribution.integral is None:
             raise NotImplementedError('Numeric integrals are not yet supported')
@@ -75,34 +102,19 @@ def Distribution(distribution_init):
 
         # Force logp to negative infinity when outside the allowed bounds
         for var, bound in zip(variables, bounds):
-            conditions = []
-            for l, u in bound:
-                lower_is_neg_inf = not isinstance(l, tf.Tensor) and np.isneginf(l)
-                upper_is_pos_inf = not isinstance(u, tf.Tensor) and np.isposinf(u)
-
-                if not lower_is_neg_inf and upper_is_pos_inf:
-                    conditions.append(tf.greater(var, l))
-                elif lower_is_neg_inf and not upper_is_pos_inf:
-                    conditions.append(tf.less(var, u))
-                elif not (lower_is_neg_inf or upper_is_pos_inf):
-                    conditions.append(tf.logical_and(tf.greater(var, l), tf.less(var, u)))
-
-            if len(conditions) > 0:
-                is_inside_bounds = conditions[0]
-                for condition in conditions[1:]:
-                    is_inside_bounds = tf.logical_or(is_inside_bounds, condition)
-
-                Distribution.logp = tf.select(
-                    is_inside_bounds,
-                    Distribution.logp,
-                    tf.fill(tf.shape(var), config.dtype(-np.inf))
-                )
+            logp = utilities.set_logp_to_neg_inf(var, logp, bound)
 
         # Add the new variables to the model description
         for variable, bound in zip(variables, bounds):
-            Model.current_model._description[variable] = Description(
-                Distribution.logp, Distribution.integral, bound
+            description = Description(
+                logp,
+                Distribution.integral,
+                bound,
+                tf.constant(1, config.dtype),
+                Distribution.depends
             )
+            Model.current_model._description[variable] = description
+            Model.current_model._full_description[variable] = description
 
         return variable if len(variables) == 1 else variables
     return f

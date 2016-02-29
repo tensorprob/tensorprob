@@ -1,4 +1,4 @@
-from .combinators import Mix2
+from .combinators import Mix2, Mix3, MixN
 from .exponential import Exponential
 from .normal import Normal
 from .poisson import Poisson

@@ -1,18 +1,17 @@
-from collections import namedtuple
 import logging
 logger = logging.getLogger('tensorprob')
 
-import numpy as np
 import tensorflow as tf
 
 from . import config
-from .utilities import classproperty, generate_name, is_finite
-
-
-# Used to specify valid ranges for variables
-Region = namedtuple('Region', ['lower', 'upper'])
-# Used to describe a variable's role in the model
-Description = namedtuple('Description', ['logp', 'integral', 'bounds'])
+from .utilities import (
+    classproperty,
+    Description,
+    generate_name,
+    ModelSubComponet,
+    Region,
+    set_logp_to_neg_inf
+)
 
 
 class ModelError(RuntimeError):
@@ -28,6 +27,7 @@ class Model(object):
         # `tensorflow.placeholder`s representing the random variables of the
         # model (defined by the user in the model block) to their `Description`s
         self._description = dict()
+        self._full_description = dict()
         # A dictionary mapping the `tensorflow.placeholder`s representing the
         # observed variables of the model to `tensorflow.Variables`
         # These are set in the `model.observed()` method
@@ -67,14 +67,21 @@ class Model(object):
     def __exit__(self, e_type, e, tb):
         Model._current_model = None
 
+        # Normalise all log probabilities contained in _description
+        for var, (logp, integral, bounds, frac, _) in self._full_description.items():
+            logp -= tf.log(tf.add_n([integral(l, u) for l, u in bounds]))
+
+            # Force logp to negative infinity when outside the allowed bounds
+            logp = set_logp_to_neg_inf(var, logp, bounds)
+
+            # Add the changed logp to the model description
+            self._full_description[var] = Description(logp, integral, bounds, frac, _)
+            if var in self._description:
+                self._description[var] = Description(logp, integral, bounds, frac, _)
+
+        # Exit the tensorflow graph
         self.graph_ctx.__exit__(e_type, e, tb)
         self.graph_ctx = None
-
-        # Normalise all log probabilities contained in _description
-        with self._model_graph.as_default():
-            for var, (logp, integral, bounds) in self._description.items():
-                logp -= tf.log(tf.add_n([integral(l, u) for l, u in bounds]))
-                self._description[var] = Description(logp, integral, bounds)
 
         # We shouldn't be allowed to edit this one anymore
         self._model_graph.finalize()
@@ -82,6 +89,21 @@ class Model(object):
         # Re-raise underlying exceptions
         if e_type is not None:
             raise
+
+    def __getitem__(self, key):
+        if key not in self._full_description:
+            raise KeyError
+
+        logp, integral, bounds, frac, _ = self._full_description[key]
+
+        def pdf(*args):
+            self._set_data(args)
+            return self.session.run(
+                tf.exp(self._get_rewritten(logp)) *
+                self._get_rewritten(frac)
+            )
+
+        return ModelSubComponet(pdf)
 
     def observed(self, *args):
         if Model._current_model == self:
