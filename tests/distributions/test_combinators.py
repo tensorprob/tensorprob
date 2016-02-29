@@ -111,14 +111,6 @@ def test_mix2_fit_with_mix2_input():
 
     result = model.fit(data)
 
-    from matplotlib import pyplot as plt
-    from matplotlib_hep import histpoints
-    xs = np.linspace(-5, 41, 1000)
-    histpoints(data, bins=np.linspace(-5, 41, (41+5)*3+1), normed=True, ms=1)
-    plt.plot(xs, model.pdf(xs), 'b-')
-    plt.xlim(-5, 41)
-    plt.show()
-
     # Check the fit was successful
     assert result.success
     assert abs(model.state[mu] - 19) < 3e-2
