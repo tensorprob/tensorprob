@@ -247,13 +247,15 @@ class Model(object):
         values = self.session.run(variables)
         return {k: v for k, v in zip(keys, values)}
 
-    def _set_data(self, data):
+    def _check_data(self, data):
         if self._hidden is None:
             raise ModelError("Can't use the model before it has been initialized with `model.initialize(...)`")
         # TODO(ibab) make sure that args all have the correct shape
         if len(data) != len(self._observed):
             raise ValueError("Different number of arguments passed to model method than declared in `model.observed()`")
 
+    def _set_data(self, data):
+        self._check_data(data)
         ops = []
         feed_dict = {self._setters[k][1]: v for k, v in zip(self._observed.values(), data)}
         for obs, arg in zip(self._observed.values(), data):
@@ -261,13 +263,16 @@ class Model(object):
         for s in ops:
             self.session.run(s, feed_dict=feed_dict)
 
+    def _run_with_data(self, expr, data):
+        self._check_data(data)
+        feed_dict = {k: v for k, v in zip(self._observed.values(), data)}
+        return self.session.run(expr, feed_dict=feed_dict)
+
     def pdf(self, *args):
-        self._set_data(args)
-        return self.session.run(self._pdf)
+        return self._run_with_data(self._pdf, args)
 
     def nll(self, *args):
-        self._set_data(args)
-        return self.session.run(self._nll)
+        return self._run_with_data(self._nll, args)
 
     def fit(self, *args, **kwargs):
         optimizer = kwargs.get('optimizer')

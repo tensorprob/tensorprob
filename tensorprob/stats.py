@@ -17,7 +17,7 @@ def fisher(model, variables=None):
         feed = { k: v for k, v in zip(variables, xs) }
         out = model.session.run(model._nll, feed_dict=feed)
         if np.isnan(out):
-            return -1e40
+            return 1e100
         return out
 
     x = model.session.run(list(model._hidden.values()))
