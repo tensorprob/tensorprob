@@ -228,34 +228,41 @@ class Model(object):
             raise ModelError("Can't call `model.initialize()` inside the model block")
 
         if self._observed is None:
-            raise ModelError("Can't initialize latent variables before `model.observed()` has been called.")
+            raise ModelError("Can't initialize latent variables before "
+                             "`model.observed()` has been called.")
 
         if self._hidden is not None:
-            raise ModelError("Can't call `model.initialize()` twice. Use `model.assign()` to change the state.")
+            raise ModelError("Can't call `model.initialize()` twice. Use "
+                             "`model.assign()` to change the state.")
 
         if not isinstance(assign_dict, dict) or not assign_dict:
-            raise ValueError("Argument to `model.initialize()` must be a dictionary with more than one element")
+            raise ValueError("Argument to `model.initialize()` must be a "
+                             "dictionary with more than one element")
 
         for key in assign_dict.keys():
             if not isinstance(key, tf.Tensor):
-                raise ValueError("Key in the initialization dict is not a tf.Tensor: {}".format(repr(key)))
+                raise ValueError("Key in the initialization dict is not a "
+                                 "tf.Tensor: {}".format(repr(key)))
 
         hidden = set(self._description.keys()).difference(set(self._observed))
         if hidden != set(assign_dict.keys()):
-            raise ModelError("Not all latent variables have been passed in a call to `model.initialize().\n\
-                    Missing variables: {}".format(hidden.difference(assign_dict.keys())))
+            raise ModelError("Not all latent variables have been passed in a "
+                             "call to `model.initialize().\nMissing variables: {}"
+                             .format(hidden.difference(assign_dict.keys())))
 
         # Add variables to the execution graph
         with self.session.graph.as_default():
             self._hidden = dict()
             for var in hidden:
-                self._hidden[var] = tf.Variable(var.dtype.as_numpy_dtype(assign_dict[var]), name=var.name.split(':')[0])
+                self._hidden[var] = tf.Variable(var.dtype.as_numpy_dtype(assign_dict[var]),
+                                                name=var.name.split(':')[0])
         self.session.run(tf.initialize_variables(list(self._hidden.values())))
         # Sort the hidden variables so we can access them in a consistant order
         self._hidden_sorted = sorted(self._hidden.keys(), key=lambda v: v.name)
         for h in self._hidden.values():
             with self.session.graph.as_default():
-                var = tf.Variable(h.dtype.as_numpy_dtype(), name=h.name.split(':')[0] + '_placeholder')
+                var = tf.Variable(h.dtype.as_numpy_dtype(),
+                                  name=h.name.split(':')[0] + '_placeholder')
                 setter = h.assign(var)
             self._setters[h] = (setter, var)
 
@@ -311,17 +318,20 @@ class Model(object):
             raise ModelError("Can't call `model.assign()` inside the model block")
 
         if not isinstance(assign_dict, dict) or not assign_dict:
-            raise ValueError("Argument to assign must be a dictionary with more than one element")
+            raise ValueError("Argument to assign must be a dictionary with "
+                             "more than one element")
 
         if self._observed is None:
-            raise ModelError("Can't assign state to the model before `model.observed()` has been called.")
+            raise ModelError("Can't assign state to the model before "
+                             "`model.observed()` has been called.")
 
         if self._hidden is None:
-            raise ModelError("Can't assign state to the model before `model.initialize()` has been called.")
+            raise ModelError("Can't assign state to the model before "
+                             "`model.initialize()` has been called.")
 
         # Assign values without adding to the graph
-        setters = [ self._setters[self._hidden[k]][0] for k, v in assign_dict.items() ]
-        feed_dict = { self._setters[self._hidden[k]][1]: v for k, v in assign_dict.items() }
+        setters = [self._setters[self._hidden[k]][0] for k, v in assign_dict.items()]
+        feed_dict = {self._setters[self._hidden[k]][1]: v for k, v in assign_dict.items()}
         for s in setters:
             self.session.run(s, feed_dict=feed_dict)
 
@@ -343,15 +353,19 @@ class Model(object):
 
     def _check_data(self, data):
         if self._hidden is None:
-            raise ModelError("Can't use the model before it has been initialized with `model.initialize(...)`")
+            raise ModelError("Can't use the model before it has been "
+                             "initialized with `model.initialize(...)`")
         # TODO(ibab) make sure that args all have the correct shape
         if len(data) != len(self._observed):
-            raise ValueError("Different number of arguments passed to model method than declared in `model.observed()`")
+            raise ValueError("Different number of arguments passed to model "
+                             "method than declared in `model.observed()`")
 
     def _set_data(self, data):
         self._check_data(data)
         ops = []
-        feed_dict = {self._setters[k][1]: v for k, v in zip(self._observed.values(), data) if v is not None}
+        feed_dict = {self._setters[k][1]: v
+                     for k, v in zip(self._observed.values(), data)
+                     if v is not None}
         for obs, arg in zip(self._observed.values(), data):
             if arg is None:
                 continue
@@ -383,10 +397,10 @@ class Model(object):
         >>> xs = np.linspace(-1, 1, 200)
         >>> plt.plot(xs, model.pdf(xs))
         '''
-        observed_logps = []
-        for arg, logp in zip(args, self._observed_logps.values()):
-            if arg is not None:
-                observed_logps.append(logp)
+        observed_logps = [
+            logp for arg, logp in zip(args, self._observed_logps.values())
+            if arg is not None
+        ]
         return self._run_with_data(tf.exp(tf.add_n(observed_logps)), args)
 
     def nll(self, *args):
