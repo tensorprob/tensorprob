@@ -32,6 +32,7 @@ from . import distributions
 from .distribution import Distribution, DistributionError
 from .model import Model, ModelError
 from .parameter import Parameter
+from .stats import fisher
 from .distributions import *
 from .optimizers import *
 from .samplers import *
