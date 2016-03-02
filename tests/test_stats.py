@@ -18,5 +18,7 @@ def test_fisher():
     xs = np.random.normal(0, 1, 200)
     model.fit(xs)
     cov = fisher(model)
+    # TODO(ibab) Make this more robust and useful
+    # This is the result I got when running this
     assert np.isclose(cov[mu][mu], 0.00521652579559)
 
