@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 
 from .. import config
@@ -33,14 +32,15 @@ def UniformInt(name=None):
     Distribution.logp = tf.fill(tf.shape(X), config.dtype(0))
 
     def integral(lower, upper):
-        return tf.cond(
+        val = tf.cond(
             tf.logical_or(
-                tf.is_inf(tf.cast(tf.ceil(lower), config.dtype)),
-                tf.is_inf(tf.cast(tf.floor(upper), config.dtype))
+                tf.is_inf(tf.ceil(tf.cast(lower, config.dtype))),
+                tf.is_inf(tf.floor(tf.cast(upper, config.dtype)))
             ),
             lambda: tf.constant(1, dtype=config.dtype),
             lambda: tf.cast(upper, config.dtype) - tf.cast(lower, config.dtype),
         )
+        return val
 
     Distribution.integral = integral
 
