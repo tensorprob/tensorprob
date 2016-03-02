@@ -2,6 +2,7 @@ from collections import OrderedDict
 import logging
 logger = logging.getLogger('tensorprob')
 
+import numpy as np
 import tensorflow as tf
 
 from . import config
@@ -274,18 +275,37 @@ class Model(object):
         with self.session.graph.as_default():
             # observed_logps contains one element per data point
             observed_logps = OrderedDict()
+            observed_logp_setters = []
             for v in self._observed:
-                observed_logps[v] = self._get_rewritten(self._description[v].logp)
+                logp_flag = tf.Variable(
+                    np.int32(-42),
+                    name=v.name.split(':')[0] + '_logp'
+                )
+                var = tf.Variable(
+                    np.int32(-42),
+                    name=logp_flag.name.split(':')[0] + '_placeholder'
+                )
+                setter = logp_flag.assign(var)
+
+                observed_logp_setters.append((setter, var, logp_flag))
+                observed_logps[v] = tf.cond(
+                    tf.equal(logp_flag, -42),
+                    lambda: self._get_rewritten(self._description[v].logp),
+                    lambda: tf.Print(tf.fill(tf.reshape(tf.to_int32(logp_flag), [1]), config.dtype(0)),
+                                     [tf.fill(tf.reshape(tf.to_int32(logp_flag), [1]), config.dtype(0))])
+                )
             # hidden_logps contains a single value
             hidden_logps = [self._get_rewritten(self._description[v].logp) for v in self._hidden]
 
             # Handle the case where we don't have observed variables.
             # We define the probability to not observe anything as 1.
             if observed_logps:
-                self._observed_logps = observed_logps
                 observed_logps = list(observed_logps.values())
             else:
                 observed_logps = [tf.constant(0, dtype=config.dtype)]
+            self._logp_flag_setters = observed_logp_setters
+
+            self._pdf = tf.exp(tf.add_n(observed_logps))
 
             self._nll = -tf.add_n(
                 [tf.reduce_sum(logp) for logp in observed_logps] +
@@ -300,6 +320,9 @@ class Model(object):
                     logger.warn('Model is independent of variable {}'.format(
                         v.name.split(':')[0]
                     ))
+
+        if observed_logp_setters:
+            self.session.run(tf.initialize_variables([x[2] for x in observed_logp_setters]))
 
         self.initialized = True
 
@@ -333,7 +356,7 @@ class Model(object):
         setters = [self._setters[self._hidden[k]][0] for k, v in assign_dict.items()]
         feed_dict = {self._setters[self._hidden[k]][1]: v for k, v in assign_dict.items()}
         for s in setters:
-            self.session.run(s, feed_dict=feed_dict)
+            self.session.run(setters, feed_dict=feed_dict)
 
     @property
     def state(self):
@@ -378,7 +401,7 @@ class Model(object):
         feed_dict = {k: v for k, v in zip(self._observed.values(), data) if v is not None}
         return self.session.run(expr, feed_dict=feed_dict)
 
-    def pdf(self, *args):
+    def pdf(self, *args_in):
         '''The probability density function for observing a single entry
         of each random variable that has been declared as observed.
 
@@ -397,11 +420,26 @@ class Model(object):
         >>> xs = np.linspace(-1, 1, 200)
         >>> plt.plot(xs, model.pdf(xs))
         '''
-        observed_logps = [
-            logp for arg, logp in zip(args, self._observed_logps.values())
-            if arg is not None
-        ]
-        return self._run_with_data(tf.exp(tf.add_n(observed_logps)), args)
+        setters = []
+        feed_dict = {}
+        args = []
+        default_size = ([len(a) for a in args_in if a is not None] or [1])[0]
+        for arg, (setter, var, lop_setter) in zip(args_in, self._logp_flag_setters):
+            setters.append(setter)
+            if arg is None:
+                feed_dict[var] = default_size
+                args.append(-1)
+            else:
+                feed_dict[var] = -42
+                args.append(arg)
+
+        self.session.run(setters, feed_dict=feed_dict)
+
+        result = self._run_with_data(self._pdf, args)
+
+        self.session.run(setters, feed_dict={k: -42 for k in feed_dict})
+
+        return result
 
     def nll(self, *args):
         '''The negative log-likelihood for all passed datasets.
