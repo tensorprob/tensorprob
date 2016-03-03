@@ -1,6 +1,8 @@
+from collections import OrderedDict
 import logging
 logger = logging.getLogger('tensorprob')
 
+import numpy as np
 import tensorflow as tf
 
 from . import config
@@ -172,7 +174,7 @@ class Model(object):
             if arg not in self._description:
                 raise ValueError("Argument {} is not known to the model".format(arg))
 
-        self._observed = dict()
+        self._observed = OrderedDict()
         self._setters = dict()
         with self.session.graph.as_default():
             for arg in args:
@@ -227,34 +229,41 @@ class Model(object):
             raise ModelError("Can't call `model.initialize()` inside the model block")
 
         if self._observed is None:
-            raise ModelError("Can't initialize latent variables before `model.observed()` has been called.")
+            raise ModelError("Can't initialize latent variables before "
+                             "`model.observed()` has been called.")
 
         if self._hidden is not None:
-            raise ModelError("Can't call `model.initialize()` twice. Use `model.assign()` to change the state.")
+            raise ModelError("Can't call `model.initialize()` twice. Use "
+                             "`model.assign()` to change the state.")
 
         if not isinstance(assign_dict, dict) or not assign_dict:
-            raise ValueError("Argument to `model.initialize()` must be a dictionary with more than one element")
+            raise ValueError("Argument to `model.initialize()` must be a "
+                             "dictionary with more than one element")
 
         for key in assign_dict.keys():
             if not isinstance(key, tf.Tensor):
-                raise ValueError("Key in the initialization dict is not a tf.Tensor: {}".format(repr(key)))
+                raise ValueError("Key in the initialization dict is not a "
+                                 "tf.Tensor: {}".format(repr(key)))
 
         hidden = set(self._description.keys()).difference(set(self._observed))
         if hidden != set(assign_dict.keys()):
-            raise ModelError("Not all latent variables have been passed in a call to `model.initialize().\n\
-                    Missing variables: {}".format(hidden.difference(assign_dict.keys())))
+            raise ModelError("Not all latent variables have been passed in a "
+                             "call to `model.initialize().\nMissing variables: {}"
+                             .format(hidden.difference(assign_dict.keys())))
 
         # Add variables to the execution graph
         with self.session.graph.as_default():
             self._hidden = dict()
             for var in hidden:
-                self._hidden[var] = tf.Variable(var.dtype.as_numpy_dtype(assign_dict[var]), name=var.name.split(':')[0])
+                self._hidden[var] = tf.Variable(var.dtype.as_numpy_dtype(assign_dict[var]),
+                                                name=var.name.split(':')[0])
         self.session.run(tf.initialize_variables(list(self._hidden.values())))
         # Sort the hidden variables so we can access them in a consistant order
         self._hidden_sorted = sorted(self._hidden.keys(), key=lambda v: v.name)
         for h in self._hidden.values():
             with self.session.graph.as_default():
-                var = tf.Variable(h.dtype.as_numpy_dtype(), name=h.name.split(':')[0] + '_placeholder')
+                var = tf.Variable(h.dtype.as_numpy_dtype(),
+                                  name=h.name.split(':')[0] + '_placeholder')
                 setter = h.assign(var)
             self._setters[h] = (setter, var)
 
@@ -265,18 +274,40 @@ class Model(object):
 
         with self.session.graph.as_default():
             # observed_logps contains one element per data point
-            observed_logps = [self._get_rewritten(self._description[v].logp) for v in self._observed]
+            observed_logps = OrderedDict()
+            # TODO Remove, see Model.pdf
+            observed_logp_setters = []
+            for v in self._observed:
+                logp_flag = tf.Variable(
+                    np.int32(-42),
+                    name=v.name.split(':')[0] + '_logp'
+                )
+                var = tf.Variable(
+                    np.int32(-42),
+                    name=logp_flag.name.split(':')[0] + '_placeholder'
+                )
+                setter = logp_flag.assign(var)
+
+                observed_logp_setters.append((setter, var, logp_flag))
+                observed_logps[v] = tf.cond(
+                    tf.equal(logp_flag, -42),
+                    lambda: self._get_rewritten(self._description[v].logp),
+                    lambda: tf.Print(tf.fill(tf.reshape(tf.to_int32(logp_flag), [1]), config.dtype(0)),
+                                     [tf.fill(tf.reshape(tf.to_int32(logp_flag), [1]), config.dtype(0))])
+                )
             # hidden_logps contains a single value
             hidden_logps = [self._get_rewritten(self._description[v].logp) for v in self._hidden]
 
             # Handle the case where we don't have observed variables.
             # We define the probability to not observe anything as 1.
-            if not observed_logps:
+            if observed_logps:
+                observed_logps = list(observed_logps.values())
+            else:
                 observed_logps = [tf.constant(0, dtype=config.dtype)]
+            self._logp_flag_setters = observed_logp_setters
 
-            self._pdf = tf.exp(tf.add_n(
-                observed_logps
-            ))
+            self._pdf = tf.exp(tf.add_n(observed_logps))
+
             self._nll = -tf.add_n(
                 [tf.reduce_sum(logp) for logp in observed_logps] +
                 hidden_logps
@@ -290,6 +321,9 @@ class Model(object):
                     logger.warn('Model is independent of variable {}'.format(
                         v.name.split(':')[0]
                     ))
+
+        if observed_logp_setters:
+            self.session.run(tf.initialize_variables([x[2] for x in observed_logp_setters]))
 
         self.initialized = True
 
@@ -308,19 +342,21 @@ class Model(object):
             raise ModelError("Can't call `model.assign()` inside the model block")
 
         if not isinstance(assign_dict, dict) or not assign_dict:
-            raise ValueError("Argument to assign must be a dictionary with more than one element")
+            raise ValueError("Argument to assign must be a dictionary with "
+                             "more than one element")
 
         if self._observed is None:
-            raise ModelError("Can't assign state to the model before `model.observed()` has been called.")
+            raise ModelError("Can't assign state to the model before "
+                             "`model.observed()` has been called.")
 
         if self._hidden is None:
-            raise ModelError("Can't assign state to the model before `model.initialize()` has been called.")
+            raise ModelError("Can't assign state to the model before "
+                             "`model.initialize()` has been called.")
 
         # Assign values without adding to the graph
-        setters = [ self._setters[self._hidden[k]][0] for k, v in assign_dict.items() ]
-        feed_dict = { self._setters[self._hidden[k]][1]: v for k, v in assign_dict.items() }
-        for s in setters:
-            self.session.run(s, feed_dict=feed_dict)
+        setters = [self._setters[self._hidden[k]][0] for k, v in assign_dict.items()]
+        feed_dict = {self._setters[self._hidden[k]][1]: v for k, v in assign_dict.items()}
+        self.session.run(setters, feed_dict=feed_dict)
 
     @property
     def state(self):
@@ -340,26 +376,32 @@ class Model(object):
 
     def _check_data(self, data):
         if self._hidden is None:
-            raise ModelError("Can't use the model before it has been initialized with `model.initialize(...)`")
+            raise ModelError("Can't use the model before it has been "
+                             "initialized with `model.initialize(...)`")
         # TODO(ibab) make sure that args all have the correct shape
         if len(data) != len(self._observed):
-            raise ValueError("Different number of arguments passed to model method than declared in `model.observed()`")
+            raise ValueError("Different number of arguments passed to model "
+                             "method than declared in `model.observed()`")
 
     def _set_data(self, data):
         self._check_data(data)
         ops = []
-        feed_dict = {self._setters[k][1]: v for k, v in zip(self._observed.values(), data)}
+        feed_dict = {self._setters[k][1]: v
+                     for k, v in zip(self._observed.values(), data)
+                     if v is not None}
         for obs, arg in zip(self._observed.values(), data):
+            if arg is None:
+                continue
             ops.append(self._setters[obs][0])
         for s in ops:
             self.session.run(s, feed_dict=feed_dict)
 
     def _run_with_data(self, expr, data):
         self._check_data(data)
-        feed_dict = {k: v for k, v in zip(self._observed.values(), data)}
+        feed_dict = {k: v for k, v in zip(self._observed.values(), data) if v is not None}
         return self.session.run(expr, feed_dict=feed_dict)
 
-    def pdf(self, *args):
+    def pdf(self, *args_in):
         '''The probability density function for observing a single entry
         of each random variable that has been declared as observed.
 
@@ -378,7 +420,35 @@ class Model(object):
         >>> xs = np.linspace(-1, 1, 200)
         >>> plt.plot(xs, model.pdf(xs))
         '''
-        return self._run_with_data(self._pdf, args)
+        # If there is a None included in args we can use
+        # `self._logp_flag_setters` to disable parts of the likelihood
+        # and crudely integrate out dimensions.
+        #
+        # If the flags are set equal to -42 the term in the likelihood is
+        # replaced with a tensor of zeros, where the size of the tensor is
+        # equal to the flag. This size is determined using the length of the
+        # first non-`None` element of `args`, if all elements are `None` a
+        # default value of 1 is used.
+        #
+        # TODO Remove this horrible hack and have a better way of integrating
+        # out dimensions
+        setters = []
+        feed_dict = {}
+        default_size = ([len(a) for a in args_in if a is not None] or [1])[0]
+        for arg, (setter, var, lop_setter) in zip(args_in, self._logp_flag_setters):
+            setters.append(setter)
+            feed_dict[var] = default_size if arg is None else -42
+
+        self.session.run(setters, feed_dict=feed_dict)
+
+        # A value is still needed for unused datasets so replace `None` with
+        # -1 in args
+        result = self._run_with_data(self._pdf, [-1 if a is None else a for a in args_in])
+
+        # Set all the flags back to -1 to enable all parts of the likelihood
+        self.session.run(setters, feed_dict={k: -42 for k in feed_dict})
+
+        return result
 
     def nll(self, *args):
         '''The negative log-likelihood for all passed datasets.

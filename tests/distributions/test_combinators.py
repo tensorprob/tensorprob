@@ -4,7 +4,17 @@ import numpy as np
 import scipy.stats as st
 from numpy.testing import assert_array_almost_equal
 
-from tensorprob import Model, Parameter, Normal, Exponential, Mix2, Mix3, MixN
+from tensorprob import (
+    Exponential,
+    MigradOptimizer,
+    Mix2,
+    Mix3,
+    MixN,
+    Model,
+    Normal,
+    Parameter,
+    Poisson
+)
 
 
 def test_mix2_fit():
@@ -415,3 +425,72 @@ def test_mixn_fit():
     out2 = model[X3].pdf(xs)
 
     assert_array_almost_equal(out1, out2, 11)
+
+
+def test_mix2_extended():
+    np.random.seed(0)
+    exp_data = np.random.exponential(10, 20000)
+    exp_data = exp_data[(6 < exp_data) & (exp_data < 36)]
+
+    norm1_data = np.random.normal(19, 2, 10000)
+    norm1_data = norm1_data[(6 < norm1_data) & (norm1_data < 36)]
+
+    data = np.concatenate([exp_data, norm1_data])
+    data = data[((6 < data) & (data < 36))]
+
+    with Model() as model:
+        mu = Parameter()
+        sigma = Parameter(lower=1)
+        a = Parameter(lower=0)
+
+        N1 = Parameter(lower=0)
+        N2 = Parameter(lower=0)
+        N = Poisson(N1+N2)
+
+        X1 = Normal(mu, sigma)
+        X2 = Exponential(a)
+        X12 = Mix2(N1/(N1+N2), X1, X2, bounds=[(6, 36)])
+
+    model.observed(X12, N)
+    model.initialize({
+        mu: 23,
+        sigma: 1.2,
+        a: 0.2,
+        N1: len(data)/5,
+        N2: len(data)*4/5
+    })
+    result = model.fit(data, np.ones_like(data)*len(data), optimizer=MigradOptimizer())
+
+    assert result.success
+    assert abs(model.state[mu] - 19) < 3e-2
+    assert abs(model.state[sigma] - 2) < 3e-2
+    assert abs(model.state[a] - 0.1) < 1e-3
+    assert abs(model.state[N1] - len(norm1_data)) < np.sqrt(len(norm1_data))
+    assert abs(model.state[N2] - len(exp_data)) < np.sqrt(len(exp_data))
+
+    # Check if the pdf is correct
+    xs = np.linspace(0, 41, 101)
+
+    def allowed_point(x, bounds):
+        @np.vectorize
+        def allowed_point(x):
+            for l, u in bounds:
+                if l < x and x < u:
+                    return 1
+            return 0
+        return allowed_point(x)
+
+    out1a = st.norm.pdf(xs, model.state[mu], model.state[sigma]) * allowed_point(xs, [(6, 36)])
+    integral = st.norm.cdf(36, model.state[mu], model.state[sigma])
+    integral -= st.norm.cdf(6, model.state[mu], model.state[sigma])
+    out1a *= model.state[N1] / (model.state[N1]+model.state[N2]) / integral
+
+    out1b = st.expon.pdf(xs, 0, 1/model.state[a]) * allowed_point(xs, [(6, 36)])
+    integral = st.expon.cdf(36, 0, 1/model.state[a]) - st.expon.cdf(6, 0, 1/model.state[a])
+    out1b *= model.state[N2] / (model.state[N1]+model.state[N2]) / integral
+
+    out1 = out1a + out1b
+
+    out2 = model.pdf(xs, None)
+
+    assert_array_almost_equal(out1, out2, 16)
