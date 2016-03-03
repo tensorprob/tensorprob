@@ -292,8 +292,7 @@ class Model(object):
                 observed_logps[v] = tf.cond(
                     tf.equal(logp_flag, -42),
                     lambda: self._get_rewritten(self._description[v].logp),
-                    lambda: tf.Print(tf.fill(tf.reshape(tf.to_int32(logp_flag), [1]), config.dtype(0)),
-                                     [tf.fill(tf.reshape(tf.to_int32(logp_flag), [1]), config.dtype(0))])
+                    lambda: tf.fill(tf.reshape(tf.to_int32(logp_flag), [1]), config.dtype(0))
                 )
             # hidden_logps contains a single value
             hidden_logps = [self._get_rewritten(self._description[v].logp) for v in self._hidden]
