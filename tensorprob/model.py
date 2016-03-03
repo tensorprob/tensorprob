@@ -275,6 +275,7 @@ class Model(object):
         with self.session.graph.as_default():
             # observed_logps contains one element per data point
             observed_logps = OrderedDict()
+            # TODO Remove, see Model.pdf
             observed_logp_setters = []
             for v in self._observed:
                 logp_flag = tf.Variable(
@@ -420,23 +421,32 @@ class Model(object):
         >>> xs = np.linspace(-1, 1, 200)
         >>> plt.plot(xs, model.pdf(xs))
         '''
+        # If there is a None included in args we can use
+        # `self._logp_flag_setters` to disable parts of the likelihood
+        # and crudely integrate out dimensions.
+        #
+        # If the flags are set equal to -42 the term in the likelihood is
+        # replaced with a tensor of zeros, where the size of the tensor is
+        # equal to the flag. This size is determined using the length of the
+        # first non-`None` element of `args`, if all elements are `None` a
+        # default value of 1 is used.
+        #
+        # TODO Remove this horrible hack and have a better way of integrating
+        # out dimensions
         setters = []
         feed_dict = {}
-        args = []
         default_size = ([len(a) for a in args_in if a is not None] or [1])[0]
         for arg, (setter, var, lop_setter) in zip(args_in, self._logp_flag_setters):
             setters.append(setter)
-            if arg is None:
-                feed_dict[var] = default_size
-                args.append(-1)
-            else:
-                feed_dict[var] = -42
-                args.append(arg)
+            feed_dict[var] = default_size if arg is None else -42
 
         self.session.run(setters, feed_dict=feed_dict)
 
-        result = self._run_with_data(self._pdf, args)
+        # A value is still needed for unused datasets so replace `None` with
+        # -1 in args
+        result = self._run_with_data(self._pdf, [-1 if a is None else a for a in args_in])
 
+        # Set all the flags back to -1 to enable all parts of the likelihood
         self.session.run(setters, feed_dict={k: -42 for k in feed_dict})
 
         return result
