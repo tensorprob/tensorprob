@@ -4,12 +4,38 @@
 [![Coverage Status](https://img.shields.io/coveralls/tensorprob/tensorprob/master.svg)](https://coveralls.io/github/tensorprob/tensorprob?branch=master)
 [![Documentation](https://img.shields.io/badge/documentation-link-blue.svg)](https://tensorprob.github.io/tensorprob)
 
-TensorProb is a probabalistic graphical modeling framework based on
+TensorProb is a probabalistic programming framework based on
 [TensorFlow](https://github.com/tensorflow/tensorflow).
 
-It's a Python library that allows you to construct complex multi-dimensional
-probability distributions from basic building blocks and to infer their
-parameters from data.
+:construction: **TensorProb is currently in development and not ready for production use! Expect the API to change.** :construction:
+
+It's a Python library that allows you to define random variables and complex
+probabilistic relationships between them using basic building blocks.
+If provided with observations of some of the variables, it allows you to infer the
+values of the other (unobserved) ones.
+
+TensorProb doesn't assume whether you want to use frequentist or bayesian
+paradigms to perform the inference and provides tools for doing both.
+
+The posterior distribution (or likelihood function) are constructed and
+evaluated using TensorFlow, which means you can make use of multiple CPU cores
+and GPUs simultaneously. This also makes it easy to add new custom probability
+distributions by using the symbolic operators defined in TensorFlow.
+
+See the Examples section further down to see how TensorProb can be used.
+
+## Contributing to TensorProb
+
+We happily accept contributions to the project!
+Please have a look at [`CONTRIBUTING.md`](CONTRIBUTING.md) for instructions and guidelines.
+
+## Examples
+
+The following examples are just a few small demonstrations. If you want to see
+more involved examples with detailed explanations, you can take a look at the
+Jupyter notebooks in the [`examples/`](examples/) directory.
+
+### Normal distribution
 
 This is an example for fitting a normal distribution to data:
 ```python
@@ -31,32 +57,29 @@ model.initialize({
     sigma: 10,
 })
 
-# Create dataset with Numpy
+# Create a dataset with Numpy
+np.random.seed(0)
 data = np.random.normal(0, 1, 1000)
 
 # Perform the fit
 model.fit(data)
+print(model.state[mu]) # prints -0.0452568051055
 ```
-The fitted distribution can be visualized with `model.pdf`
+The fitted distribution can be visualized using the `model.pdf` method
 ```python
 import matplotlib.pyplot as plt
 xs = np.linspace(-5, 5, 200)
 plt.hist(data, bins=20, histtype='step', color='k', normed=True)
 plt.plot(xs, model.pdf(xs), 'b-')
+plt.show()
 ```
-<div align="center"><img src="examples/example3.png" width="600px"/></div>
+<div align="center"><img src="examples/normal_fit.png" width="500px"/></div>
 
-The posterior distribution (or likelihood function) are constructed and
-evaluated using TensorFlow, which means you can make use of multiple CPU cores
-and GPUs simultaneously. This also makes it easy to add new custom probability
-distributions, or to debug your model if it's not doing what you expect.
+### Least squares fit
 
-## Line fitting example
-
-TensorProb can be used for a variety of inference tasks.
-For example, we can use it to fit a line assuming that the data points
-are distributed according to a normal distribution in the vertical direction.
-This is equivalent to a least squares fit.
+If we have a few noisy data points `(X, y)`, we can model their deviation from
+a fit line with parameters `a` and `b` as a normally distributed random variable.
+This is mathematically equivalent to a least squares fit.
 
 The model can be expressed as
 ```python
@@ -81,18 +104,51 @@ xs = np.linspace(0, 1, 100)
 ys = 1 * xs + 0 +  np.random.normal(0, .1, len(xs))
 
 results = model.fit(xs, ys)
-print(results)
 
 import matplotlib.pyplot as plt
 plt.plot(xs, ys, 'ro')
 x_ = np.linspace(0, 1, 200)
+# We use the model.state dict to access the values of a and b
 plt.plot(x_, model.state[a] * x_ + model.state[b], 'b-')
+plt.show()
 ```
-<div align="center"><img src="examples/example4.png" width="600px"/></div>
+<div align="center"><img src="examples/least_squares.png" width="500px"/></div>
 
+### Sampling random values using MCMC
 
-## Contributing to TensorProb
+TensorProb models also have an `.mcmc` method that can be used to sample
+estimates from the posterior distribution for performing bayesian inference.
 
-We happily accept contributions to the project!
-Please have a look at [`CONTRIBUTING.md`](CONTRIBUTING.md) for instructions and guidelines for contributing.
+This functionality can also be used to sample from a given probability
+distribution:
+```python
+with Model() as model:
+    X = Normal(0, 1)
+
+# We're observed nothing, so X becomes a latent variable
+model.observed()
+model.initialize({ x: 0.5 })
+np.random.seed(0)
+chains = model.mcmc(samples=5000)
+# Use a burn-in of 200 per chain and plot a histogram
+plt.hist(out[:,200:].ravel(), histtype='step', color='k', bins=100, normed=True)
+```
+We can use TensorProb again to check if these random samples are indeed
+distributed according to the given distribution:
+```python
+with Model() as model2:
+    mu = Uniform()
+    sigma = Uniform(lower=0)
+    X = Normal(mu, sigma)
+
+model2.observed(X)
+model2.initialize({ mu: 1, sigma: 2 })
+results = model2.fit(out[:,200:].ravel())
+print(results.x) # prints [ 0.00408158  1.00614212]
+
+xs = np.linspace(-5, 5, 200)
+plt.plot(xs, model2.pdf(xs), 'b-')
+plt.show()
+```
+<div align="center"><img src="examples/mcmc.png" width="500px"/></div>
 
