@@ -19,7 +19,48 @@ class ModelError(RuntimeError):
 
 
 class Model(object):
-    """The probabilistic graph."""
+    '''The model class is the primary interface of TensorProb. It allows you to
+    declare random variables, describe the (directed) probabalistic
+    relationships between them, provide observations for some of them, and
+    perform inference on the unobserved (latent) variables.
+
+    Models are agnostic as to whether you want to follow frequentist or
+    bayesian paradigms of inference. They allow you to find the maximum
+    likelihood or maximum a posteriori estimate for you model given the data
+    using the `.fit` method, or to sample from the likelihood/posterior using
+    MCMC techniques (See the `.mcmc` method).
+
+    Random variables can only be instantiated inside the `with` context of a model,
+    and each model can only have a single `with` block.
+
+    Inside the `with` context of the model, you can define variables and their
+    relationships by telling a "generative story".
+    For example, defining a new variable `X` with `X ~ Normal(0, 1)` is written as
+    `X = Normal(0, 1)`.
+    Random variables can then be plugged in as the conditional parameters of
+    other distributions.
+
+    After the `.initialize` method is called, the model has a *state* for each latent
+    variable, which is used for the initial parameters in the `.fit` and `.mcmc` methods,
+    as well as when using the `.pdf` method.
+
+    Parameters
+    ----------
+    name : string, default None
+        An optional name for this model. This is currently not used, but
+        should be useful when working with multiple models simultaneously in
+        the future.
+
+    Examples
+    --------
+    >>> with Model() as model:
+    ...     n = Parameter(lower=0)
+    ...     N = Poisson(n)
+    ... model.observed(N)
+    ... model.initialize({ n: 10 })
+    ... model.fit([20])
+    '''
+
     _current_model = None
 
     def __init__(self, name=None):
@@ -52,6 +93,7 @@ class Model(object):
 
     @classproperty
     def current_model(self):
+        '''Returns the currently active `Model` when inside its `with` block.'''
         if Model._current_model is None:
             raise ModelError("This can only be used inside a model environment")
         return Model._current_model
@@ -106,6 +148,23 @@ class Model(object):
         return ModelSubComponet(pdf)
 
     def observed(self, *args):
+        '''Declares the random variables in `args` as observed, which means
+        that data is available for them.
+
+        The order in which variables are used here defines the order in which
+        they will have to be passed in later when using methods like `.fit` or
+        `.mcmc`. All variables in the model that are not declared as observed
+        are automatically declared as *latent* and become the subject of
+        inference.
+
+        `.observed` can only be called once per `Model` and is a requirement
+        for calling `.initialize`.
+
+        Parameters
+        ----------
+        *args : random variables
+        The random variables for which data is available.
+        '''
         if Model._current_model == self:
             raise ModelError("Can't call `model.observed()` inside the model block")
 
@@ -147,6 +206,19 @@ class Model(object):
         return self.session.graph.get_tensor_by_name('added/' + tensor.name)
 
     def initialize(self, assign_dict):
+        '''Allows you to specify the initial state of the unobserved (latent)
+        variables.
+
+        Can only be called after observed variables have been declared with
+        `.observed`.
+
+        Parameters
+        ----------
+        assign_dict : dict
+            A dictionary from random variables to values.
+            This has to specify a value for all unobserved (latent) variables
+            of the model.
+        '''
         # This is where the `self._hidden` map is created.
         # The `tensorflow.Variable`s of the map are initialized
         # to the values given by the user in `assign_dict`.
@@ -222,6 +294,16 @@ class Model(object):
         self.initialized = True
 
     def assign(self, assign_dict):
+        '''Set the state of specific unobserved (latent) variables to the specified
+        values.
+
+        Parameters
+        ----------
+        assign_dict : dict
+            A dictionary from random variables to values.
+            This has to specify a value for a subset of the unobserved (latent)
+            variables of the model.
+        '''
         if Model._current_model == self:
             raise ModelError("Can't call `model.assign()` inside the model block")
 
@@ -242,6 +324,15 @@ class Model(object):
 
     @property
     def state(self):
+        '''The current state of every unobserved (latent) variable of the
+        model. This is a dict from random variables to values.
+
+        Example
+        -------
+        >>> # Assume we have a random variable X with value 42
+        >>> model.state[X]
+        42
+        '''
         keys = self._hidden.keys()
         variables = list(self._hidden.values())
         values = self.session.run(variables)
@@ -269,12 +360,56 @@ class Model(object):
         return self.session.run(expr, feed_dict=feed_dict)
 
     def pdf(self, *args):
+        '''The probability density function for observing a single entry
+        of each random variable that has been declared as observed.
+
+        This allows you to easily plot the probability density function.
+
+        Parameters
+        ----------
+        args : lists or ndarrays
+            The entries for which we want to know the values of the probability
+            density function. All arguments must have the same shape.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> import matplotlib.pyplot as plt
+        >>> xs = np.linspace(-1, 1, 200)
+        >>> plt.plot(xs, model.pdf(xs))
+        '''
         return self._run_with_data(self._pdf, args)
 
     def nll(self, *args):
+        '''The negative log-likelihood for all passed datasets.
+
+        Parameters
+        ----------
+        args : lists or ndarrays
+            The datasets for which we want to know the value of the negative
+            log-likelihood density function. The arguments don't need to have
+            the same shape.
+        '''
         return self._run_with_data(self._nll, args)
 
     def fit(self, *args, **kwargs):
+        '''Perform a maximum likelihood or maximum a posteriori estimate
+        using one of the available function optimization backends.
+
+        Parameters
+        ----------
+        args : lists or ndarrays
+            The datasets from which we want to infer the values of unobserved
+            (latent) variables. The arguments don't need to have the same
+            shape.
+        use_gradient : bool
+            Whether the optimizer should use gradients derived using
+            TensorFlow. Some optimizers may not be able to use gradient
+            information, in which case this argument is ignored.
+        optimizer : subclass of BaseOptimizer
+            The optimization backend to use.
+            See the `optimizers` module for which optimizers are available.
+        '''
         optimizer = kwargs.get('optimizer')
         use_gradient = kwargs.get('use_gradient', True)
         self._set_data(args)
@@ -302,6 +437,19 @@ class Model(object):
         return out
 
     def mcmc(self, *args, **kwargs):
+        '''Perform MCMC sampling of the possible values of unobserved (latent)
+        variables using one of the available sampling backends.
+
+        Parameters
+        ----------
+        args : lists or ndarrays
+            The datasets from which we want to infer the values of unobserved
+            (latent) variables. The arguments don't need to have the same
+            shape.
+        sampler : subclass of BaseSampler
+            The sampling backend to use.
+            See the `samplers` module for which samplers are available.
+        '''
         sampler = kwargs.get('sampler')
         samples = kwargs.get('samples')
         self._set_data(args)
