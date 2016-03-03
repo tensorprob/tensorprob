@@ -356,8 +356,7 @@ class Model(object):
         # Assign values without adding to the graph
         setters = [self._setters[self._hidden[k]][0] for k, v in assign_dict.items()]
         feed_dict = {self._setters[self._hidden[k]][1]: v for k, v in assign_dict.items()}
-        for s in setters:
-            self.session.run(setters, feed_dict=feed_dict)
+        self.session.run(setters, feed_dict=feed_dict)
 
     @property
     def state(self):
