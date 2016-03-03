@@ -1,3 +1,5 @@
+:construction: **TensorProb is currently under construction and not yet ready for production use! Expect things to break!** :construction:
+
 # TensorProb
 
 [![Build Status](https://img.shields.io/travis/tensorprob/tensorprob/master.svg)](https://travis-ci.org/tensorprob/tensorprob)
@@ -6,8 +8,6 @@
 
 TensorProb is a probabalistic programming framework based on
 [TensorFlow](https://github.com/tensorflow/tensorflow).
-
-:construction: **TensorProb is currently in development and not ready for production use! Expect the API to change.** :construction:
 
 It's a Python library that allows you to define random variables and complex
 probabilistic relationships between them using basic building blocks.
