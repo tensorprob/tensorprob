@@ -14,5 +14,6 @@ setup(name='tensorprob',
           'tensorprob',
           'tensorprob.distributions',
           'tensorprob.optimizers',
+          'tensorprob.samplers'
       ],
       zip_safe=False)
