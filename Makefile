@@ -16,8 +16,8 @@ test-coverage:
 format:
 	yapf -i -r .
 
-docs: docs/mkdocs.yml ${DOCS}
-	cd docs/ && python autogen.py && mkdocs build
+docs:
+	cd docs/ && make html
 
 publish:
 	@ghp-import -n docs/site && git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages > /dev/null

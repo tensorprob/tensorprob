@@ -28,9 +28,6 @@ script:
     - make test-coverage
 after_success:
     - pip install --user .
-    - make docs
-    # Don't publish pull requests
-    - '[ "${TRAVIS_PULL_REQUEST}" = "false" ] && make publish || echo "Pull requests are not published"'
     - coveralls
 cache: apt
 notifications:

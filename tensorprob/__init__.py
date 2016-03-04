@@ -1,3 +1,5 @@
+__version__ = '0.0.0'
+
 import logging
 logger = logging.getLogger('tensorflow')
 logger.setLevel(logging.WARN)
