@@ -6,7 +6,7 @@
 [![Coverage Status](https://img.shields.io/coveralls/tensorprob/tensorprob/master.svg)](https://coveralls.io/github/tensorprob/tensorprob?branch=master)
 [![Documentation](https://img.shields.io/badge/documentation-link-blue.svg)](https://tensorprob.github.io/tensorprob)
 
-TensorProb is a probabalistic programming framework based on
+TensorProb is a probabilistic programming framework based on
 [TensorFlow](https://github.com/tensorflow/tensorflow).
 
 It's a Python library that allows you to define random variables and complex
