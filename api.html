@@ -1,0 +1,308 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>The API documentation &mdash; tensorprob 0.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="tensorprob 0.0.0 documentation" href="index.html" />
+    <link rel="prev" title="TensorProb documentation" href="index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="the-api-documentation">
+<h1>The API documentation<a class="headerlink" href="#the-api-documentation" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul class="simple">
+</ul>
+</div>
+<span class="target" id="module-tensorprob.model"></span><dl class="class">
+<dt id="tensorprob.model.Model">
+<em class="property">class </em><code class="descclassname">tensorprob.model.</code><code class="descname">Model</code><span class="sig-paren">(</span><em>name=None</em><span class="sig-paren">)</span><a class="reference external" href="http://github.com/tensorprob/tensorprob/blob/master/tensorprob/model.py#L23"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#tensorprob.model.Model" title="Permalink to this definition">¶</a></dt>
+<dd><p>The model class is the primary interface of TensorProb. It allows you to
+declare random variables, describe the (directed) probabalistic
+relationships between them, provide observations for some of them, and
+perform inference on the unobserved (latent) variables.</p>
+<p>Models are agnostic as to whether you want to follow frequentist or
+bayesian paradigms of inference. They allow you to find the maximum
+likelihood or maximum a posteriori estimate for you model given the data
+using the <cite>.fit</cite> method, or to sample from the likelihood/posterior using
+MCMC techniques (See the <cite>.mcmc</cite> method).</p>
+<p>Random variables can only be instantiated inside the <cite>with</cite> context of a model,
+and each model can only have a single <cite>with</cite> block.</p>
+<p>Inside the <cite>with</cite> context of the model, you can define variables and their
+relationships by telling a &#8220;generative story&#8221;.
+For example, defining a new variable <cite>X</cite> with <cite>X ~ Normal(0, 1)</cite> is written as
+<cite>X = Normal(0, 1)</cite>.
+Random variables can then be plugged in as the conditional parameters of
+other distributions.</p>
+<p>After the <cite>.initialize</cite> method is called, the model has a <em>state</em> for each latent
+variable, which is used for the initial parameters in the <cite>.fit</cite> and <cite>.mcmc</cite> methods,
+as well as when using the <cite>.pdf</cite> method.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>name</strong> (<em>string, default None</em>) &#8211; An optional name for this model. This is currently not used, but
+should be useful when working with multiple models simultaneously in
+the future.</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Examples</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">Model</span><span class="p">()</span> <span class="k">as</span> <span class="n">model</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">n</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">N</span> <span class="o">=</span> <span class="n">Poisson</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+<span class="gp">... </span><span class="n">model</span><span class="o">.</span><span class="n">observed</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+<span class="gp">... </span><span class="n">model</span><span class="o">.</span><span class="n">initialize</span><span class="p">({</span> <span class="n">n</span><span class="p">:</span> <span class="mi">10</span> <span class="p">})</span>
+<span class="gp">... </span><span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">([</span><span class="mi">20</span><span class="p">])</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="tensorprob.model.Model.assign">
+<code class="descname">assign</code><span class="sig-paren">(</span><em>assign_dict</em><span class="sig-paren">)</span><a class="reference external" href="http://github.com/tensorprob/tensorprob/blob/master/tensorprob/model.py#L329"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#tensorprob.model.Model.assign" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the state of specific unobserved (latent) variables to the specified
+values.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>assign_dict</strong> (<em>dict</em>) &#8211; A dictionary from random variables to values.
+This has to specify a value for a subset of the unobserved (latent)
+variables of the model.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="tensorprob.model.Model.fit">
+<code class="descname">fit</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference external" href="http://github.com/tensorprob/tensorprob/blob/master/tensorprob/model.py#L464"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#tensorprob.model.Model.fit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform a maximum likelihood or maximum a posteriori estimate
+using one of the available function optimization backends.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>args</strong> (<em>lists or ndarrays</em>) &#8211; The datasets from which we want to infer the values of unobserved
+(latent) variables. The arguments don&#8217;t need to have the same
+shape.</li>
+<li><strong>use_gradient</strong> (<em>bool</em>) &#8211; Whether the optimizer should use gradients derived using
+TensorFlow. Some optimizers may not be able to use gradient
+information, in which case this argument is ignored.</li>
+<li><strong>optimizer</strong> (<em>subclass of BaseOptimizer</em>) &#8211; The optimization backend to use.
+See the <cite>optimizers</cite> module for which optimizers are available.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="tensorprob.model.Model.initialize">
+<code class="descname">initialize</code><span class="sig-paren">(</span><em>assign_dict</em><span class="sig-paren">)</span><a class="reference external" href="http://github.com/tensorprob/tensorprob/blob/master/tensorprob/model.py#L210"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#tensorprob.model.Model.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Allows you to specify the initial state of the unobserved (latent)
+variables.</p>
+<p>Can only be called after observed variables have been declared with
+<cite>.observed</cite>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>assign_dict</strong> (<em>dict</em>) &#8211; A dictionary from random variables to values.
+This has to specify a value for all unobserved (latent) variables
+of the model.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="tensorprob.model.Model.mcmc">
+<code class="descname">mcmc</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference external" href="http://github.com/tensorprob/tensorprob/blob/master/tensorprob/model.py#L508"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#tensorprob.model.Model.mcmc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform MCMC sampling of the possible values of unobserved (latent)
+variables using one of the available sampling backends.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>args</strong> (<em>lists or ndarrays</em>) &#8211; The datasets from which we want to infer the values of unobserved
+(latent) variables. The arguments don&#8217;t need to have the same
+shape.</li>
+<li><strong>sampler</strong> (<em>subclass of BaseSampler</em>) &#8211; The sampling backend to use.
+See the <cite>samplers</cite> module for which samplers are available.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="tensorprob.model.Model.nll">
+<code class="descname">nll</code><span class="sig-paren">(</span><em>*args</em><span class="sig-paren">)</span><a class="reference external" href="http://github.com/tensorprob/tensorprob/blob/master/tensorprob/model.py#L452"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#tensorprob.model.Model.nll" title="Permalink to this definition">¶</a></dt>
+<dd><p>The negative log-likelihood for all passed datasets.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>args</strong> (<em>lists or ndarrays</em>) &#8211; The datasets for which we want to know the value of the negative
+log-likelihood density function. The arguments don&#8217;t need to have
+the same shape.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="tensorprob.model.Model.observed">
+<code class="descname">observed</code><span class="sig-paren">(</span><em>*args</em><span class="sig-paren">)</span><a class="reference external" href="http://github.com/tensorprob/tensorprob/blob/master/tensorprob/model.py#L152"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#tensorprob.model.Model.observed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Declares the random variables in <cite>args</cite> as observed, which means
+that data is available for them.</p>
+<p>The order in which variables are used here defines the order in which
+they will have to be passed in later when using methods like <cite>.fit</cite> or
+<cite>.mcmc</cite>. All variables in the model that are not declared as observed
+are automatically declared as <em>latent</em> and become the subject of
+inference.</p>
+<p><cite>.observed</cite> can only be called once per <cite>Model</cite> and is a requirement
+for calling <cite>.initialize</cite>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>*args</strong> &#8211; </li>
+<li><strong>random variables for which data is available.</strong> (<em>The</em>) &#8211; </li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="tensorprob.model.Model.pdf">
+<code class="descname">pdf</code><span class="sig-paren">(</span><em>*args_in</em><span class="sig-paren">)</span><a class="reference external" href="http://github.com/tensorprob/tensorprob/blob/master/tensorprob/model.py#L403"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#tensorprob.model.Model.pdf" title="Permalink to this definition">¶</a></dt>
+<dd><p>The probability density function for observing a single entry
+of each random variable that has been declared as observed.</p>
+<p>This allows you to easily plot the probability density function.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>args</strong> (<em>lists or ndarrays</em>) &#8211; The entries for which we want to know the values of the probability
+density function. All arguments must have the same shape.</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Examples</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">xs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">200</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">xs</span><span class="p">))</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="tensorprob.model.Model.state">
+<code class="descname">state</code><a class="headerlink" href="#tensorprob.model.Model.state" title="Permalink to this definition">¶</a></dt>
+<dd><p>The current state of every unobserved (latent) variable of the
+model. This is a dict from random variables to values.</p>
+<p class="rubric">Example</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Assume we have a random variable X with value 42</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="n">X</span><span class="p">]</span>
+<span class="go">42</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">TensorProb documentation</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/api.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2016, Igor Babuschkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
+      
+      |
+      <a href="_sources/api.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
