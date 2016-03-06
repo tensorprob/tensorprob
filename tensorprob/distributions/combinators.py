@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from .. import config
-from ..distribution import Distribution
+from ..distribution import Distribution, DistributionError
 from ..model import Model
 from ..utilities import Description, find_common_bounds, Region
 
@@ -60,53 +60,77 @@ def MixN(fs, Xs, name=None):
 
 
 def _MixN(fractions, Xs, name=None):
-    # TODO(chrisburr) Check if f is bounded between 0 and 1?
-    X = tf.placeholder(config.dtype, name=name)
-    mix_bounds = Distribution.bounds(1)[0]
+    # Convert Xs to be iterable incase we are dealing with the 1D case
+    Xs = [(x,) if isinstance(x, tf.Tensor) else tuple(x) for x in Xs]
+
+    # Ensure all subdistributions have the same dimensionality
+    if len(set(len(x) for x in Xs)) != 1:
+        raise DistributionError("All components passed to 'MixN' must have "
+                                "the same dimensionality.")
+
+    n_dims = len(Xs[0])
+
+    nd_X = tuple(tf.placeholder(config.dtype, name=name) for i in range(n_dims))
+    nd_mix_bounds = Distribution.bounds(n_dims)
 
     current_model = Model._current_model
 
-    full_logp = []
+    full_pdf = []
     all_integrals = []
-    for dist, f_scale in zip(Xs, fractions):
-        logp, integral, bounds, frac, _ = current_model._description[dist]
-        bounds = find_common_bounds(mix_bounds, bounds)
-        normalisation_1 = _integrate_component(bounds, integral)
+    for dists, f_scale in zip(Xs, fractions):
+        nd_logps = []
+        nd_bounds = []
+        nd_integrals = []
+        nd_normalisation_1 = []
+        for dist, mix_bounds, X in zip(dists, nd_mix_bounds, nd_X):
+            logp, integral, bounds, frac, _ = current_model._description[dist]
+            bounds = find_common_bounds(mix_bounds, bounds)
+            normalisation_1 = _integrate_component(bounds, integral)
 
-        full_logp.append(f_scale*tf.exp(logp)/normalisation_1)
+            nd_logps.append(logp-tf.log(normalisation_1))
+            nd_bounds.append(bounds)
+            nd_integrals.append(integral)
+            nd_normalisation_1.append(normalisation_1)
 
-        all_integrals.append((f_scale, bounds, integral, normalisation_1))
+            # Modify the current model to recognize that 'deps' has been removed
+            if dist in current_model._silently_replace.values():
+                # We need to copy the items to a list as we're adding items
+                for key, value in list(current_model._silently_replace.items()):
+                    if value != dist:
+                        continue
+                    current_model._silently_replace[value] = X
+                    current_model._silently_replace[key] = X
+                    if dist in current_model._description:
+                        del current_model._description[dist]
 
-        # Modify the current model to recognize that 'deps' has been removed
-        if dist in current_model._silently_replace.values():
-            # We need to copy the items to a list as we're adding items
-            for key, value in list(current_model._silently_replace.items()):
-                if value != dist:
-                    continue
-                current_model._silently_replace[value] = X
-                current_model._silently_replace[key] = X
-                if dist in current_model._description:
-                    del current_model._description[dist]
+            else:
+                current_model._silently_replace[dist] = X
+                del current_model._description[dist]
 
-        else:
-            current_model._silently_replace[dist] = X
-            del current_model._description[dist]
+            _recurse_deps(dist, f_scale, bounds)
 
-        _recurse_deps(dist, f_scale, bounds)
+        full_pdf.append(f_scale*tf.exp(tf.add_n(nd_logps)))
+
+        all_integrals.append((f_scale, nd_bounds, nd_integrals, nd_normalisation_1))
 
     # Set properties on Distribution
-    Distribution.logp = tf.log(tf.add_n(full_logp))
+    Distribution.logp = tf.log(tf.add_n(full_pdf))
 
     def _integral(lower, upper):
         result = []
-        for f_scale, bounds, integral, normalisation_1 in all_integrals:
-            integral_bounds = find_common_bounds([Region(lower, upper)], bounds)
-            normalisation_2 = _integrate_component(integral_bounds, integral)
-            result.append(f_scale/normalisation_1*normalisation_2)
+        for f_scale, nd_bounds, nd_integral, normalisation_1 in all_integrals:
+            nd_normalisation_2 = []
+            for bounds, integral in zip(nd_bounds, nd_integral):
+                integral_bounds = find_common_bounds([Region(lower, upper)], bounds)
+                nd_normalisation_2.append(_integrate_component(integral_bounds, integral))
+            result.append(f_scale/tf.add_n(normalisation_1)*tf.add_n(nd_normalisation_2))
         return tf.add_n(result)
 
     Distribution.integral = _integral
 
-    Distribution.depends = Xs
+    if n_dims == 1:
+        Distribution.depends = [x[0] for x in Xs]
+    else:
+        Distribution.depends = Xs
 
-    return X
+    return nd_X
