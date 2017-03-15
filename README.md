@@ -40,6 +40,12 @@ pip install colorlog
 pip install numdifftools
 ```
 
+In order to run the examples you need jupyter and a few other tools. Inside your conda env do:
+```
+conda uninstall ipython
+conda install jupyter
+conda install matplotlib
+```
 
 ## Examples
 
