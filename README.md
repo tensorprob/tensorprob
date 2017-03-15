@@ -30,6 +30,17 @@ See the Examples section further down to see how TensorProb can be used.
 We happily accept contributions to the project!
 Please have a look at [`CONTRIBUTING.md`](CONTRIBUTING.md) for instructions and guidelines.
 
+## Installation
+
+TensorProb needs TensorFlow (python 3.4 version). The preferred way to install is via anaconda: https://www.tensorflow.org/install/install_linux#installing_with_anaconda
+
+In addition you need to install two packages into your respective conda env:
+```
+pip install colorlog
+pip install numdifftools
+```
+
+
 ## Examples
 
 The following examples are just a few small demonstrations. If you want to see
