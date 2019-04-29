@@ -1,4 +1,4 @@
-:construction: **TensorProb is currently under construction and not yet ready for production use! Expect things to break!** :construction:
+:warning: **TensorProb is no longer maintained and [`zfit`](https://github.com/zfit/zfit) has since emerged as an alternative.** :warning:
 
 # TensorProb
 
